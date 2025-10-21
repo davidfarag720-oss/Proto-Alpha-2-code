@@ -7,6 +7,7 @@ starts the main controller.
 """
 
 import logging
+import threading
 import time
 from ultralytics import YOLO
 
@@ -15,23 +16,20 @@ from camera_controller import CameraController
 from dashboard_ui import DashboardUI
 from main_flow import MainController
 from order_manager import Ingredient, OrderManager
-# from order_manager import OrderManager  # if you have it
 
-# -----------------------------------------------------------------------------
-# SYSTEM SETUP
-# -----------------------------------------------------------------------------
+
 def main():
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
 
     print("Initializing system...")
 
-    # --- Initialize UI ---
+    # --- Initialize UI (must be in main thread) ---
     ui = DashboardUI()
 
     # --- Initialize hardware ---
     try:
-        load_cell = LoadCell(dout_pin=5, pd_sck_pin=6, reference_unit=1)
+        load_cell = LoadCell(dout_pin=5, pd_sck_pin=6)
         cutter = Cutter()
         turntable = Turntable(numPositions=6)
         order_manager = OrderManager()
@@ -46,6 +44,7 @@ def main():
     except Exception as e:
         logging.error(f"Camera or model init failed: {e}")
         return
+
     order_manager.add_order("Potato Order", {Ingredient.POTATO: 150})
 
     # --- Initialize main controller ---
@@ -58,31 +57,40 @@ def main():
         order_manager=order_manager
     )
 
-    # -----------------------------------------------------------------------------
-    # MAIN LOOP
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # THREAD SETUP
+    # -------------------------------------------------------------------------
+    def controller_thread_fn():
+        """Run the main control logic on a background thread."""
+        try:
+            logging.info("Controller thread started.")
+            camera.start_continuous_mode()
+            main_controller.run()
+        except Exception as e:
+            logging.exception(f"Main controller error: {e}")
+        finally:
+            logging.info("Controller thread exiting...")
+
+    controller_thread = threading.Thread(target=controller_thread_fn, daemon=True)
+    controller_thread.start()
+
+    # -------------------------------------------------------------------------
+    # MAIN THREAD: run Tkinter GUI
+    # -------------------------------------------------------------------------
     try:
-        logging.info("Starting main control loop...")
-        camera.start_continuous_mode()
-        main_controller.run()  # or main_controller.start_loop() if you made it threaded
+        logging.info("Starting GUI mainloop...")
+        ui.root.mainloop()  # <-- GUI stays open and responsive here
     except KeyboardInterrupt:
-        logging.info("Shutdown requested by user.")
-    except Exception as e:
-        logging.error(f"Main loop error: {e}")
+        logging.info("GUI interrupted by user.")
     finally:
         logging.info("Shutting down system...")
-        try:
-            camera.shutdown()
-            load_cell.cleanup()
-            cutter.cleanup()
-            turntable.cleanup()
-            # order_manager.cleanup() if applicable
-        except Exception as e:
-            logging.error(f"Cleanup error: {e}")
-        print("System safely shut down.")
+        main_controller.stop()
+        camera.shutdown()
+        load_cell.cleanup()
+        cutter.cleanup()
+        turntable.cleanup()
+        logging.info("System safely shut down.")
 
-# -----------------------------------------------------------------------------
-# ENTRY POINT
-# -----------------------------------------------------------------------------
+
 if __name__ == "__main__":
     main()

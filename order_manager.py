@@ -20,7 +20,7 @@ class Order:
         return f"{self.order_name}"
 
 
-class DummyOrderManager:
+class OrderManager:
     def __init__(self):
         self.orders: list[Order] = []
         self.next_order_id = 1

@@ -3,7 +3,7 @@ import tkinter as tk
 import threading
 from tkinter import ttk
 from PIL import Image, ImageTk
-from order_manager import DummyOrderManager, Ingredient
+from order_manager import OrderManager, Ingredient
 
 class DashboardUI:
     def __init__(self, on_continue_click=None):
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     ui = DashboardUI()
 
     # Example dynamic updates
-    manager = DummyOrderManager()
+    manager = OrderManager()
     manager.add_order("Potato Order", {Ingredient.POTATO: 150})
     manager.add_order("Another Potato Order", {Ingredient.POTATO: 200})
     manager.add_order("Small Potato Order", {Ingredient.POTATO: 100})
