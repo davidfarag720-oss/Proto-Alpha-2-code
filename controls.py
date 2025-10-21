@@ -32,14 +32,14 @@ except ImportError:
 class LoadCell:
     """Class to interface with HX711 load cell amplifier."""
 
-    def __init__(self, dout_pin, pd_sck_pin, reference_unit=1.0):
+    def __init__(self, dout_pin, pd_sck_pin, reference_unit=7.047385):
         if HX711 is None:
             raise ImportError("HX711 library is not available on this system.")
 
         self.hx = HX711(dout_pin, pd_sck_pin)
         self._lock = threading.Lock()
         self._powered = True
-        self.reference_unit = reference_unit
+        self.reference_unit = 1 / reference_unit
         self.offset = 0
 
         self.hx.reset()

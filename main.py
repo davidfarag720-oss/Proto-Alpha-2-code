@@ -13,7 +13,8 @@ from ultralytics import YOLO
 from controls import LoadCell, Cutter, Turntable
 from camera_controller import CameraController
 from dashboard_ui import DashboardUI
-from main_controller import MainController
+from main_flow import MainController
+from order_manager import Ingredient, OrderManager
 # from order_manager import OrderManager  # if you have it
 
 # -----------------------------------------------------------------------------
@@ -33,7 +34,7 @@ def main():
         load_cell = LoadCell(dout_pin=5, pd_sck_pin=6, reference_unit=1)
         cutter = Cutter()
         turntable = Turntable(numPositions=6)
-        # order_manager = OrderManager()  # optional future use
+        order_manager = OrderManager()
     except Exception as e:
         logging.error(f"Hardware init failed: {e}")
         return
@@ -45,6 +46,7 @@ def main():
     except Exception as e:
         logging.error(f"Camera or model init failed: {e}")
         return
+    order_manager.add_order("Potato Order", {Ingredient.POTATO: 150})
 
     # --- Initialize main controller ---
     main_controller = MainController(
@@ -53,7 +55,7 @@ def main():
         cutter=cutter,
         load_cell=load_cell,
         turntable=turntable,
-        order_manager=None  # or order_manager
+        order_manager=order_manager
     )
 
     # -----------------------------------------------------------------------------
