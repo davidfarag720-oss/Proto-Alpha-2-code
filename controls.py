@@ -10,6 +10,11 @@ Currently Supports:
 import time
 import logging
 import threading
+try:
+    import paho.mqtt.client as mqtt
+except ImportError:
+    mqtt = None
+    logging.warning("download paho-mqtt for MQTT functionality.")
 
 try:
     from hx711 import HX711
@@ -123,67 +128,39 @@ class LoadCell:
         except Exception as e:
             logging.error("Error powering down HX711: %s", e)
 
-
-def get_weight(self, samples=5):
-    """
-    Read averaged, tared, and calibrated weight from the load cell.
-    Handles cases where get_raw_data() returns a list of samples.
-    """
-    try:
-        with self._lock:
-            readings = []
-            for _ in range(samples):
-                val = self.hx.get_raw_data()
-                if val is None:
-                    continue
-
-                # Flatten if a list is returned
-                if isinstance(val, list):
-                    readings.extend(val)
-                else:
-                    readings.append(val)
-
-                time.sleep(0.02)
-
-            if not readings:
-                return None
-
-            avg_val = sum(readings) / len(readings)
-            net_val = avg_val - self.offset
-            weight_grams = net_val * self.reference_unit
-        return round(weight_grams, 2)
-    except Exception as e:
-        logging.error("Error reading weight: %s", e)
-        return None
-
-
-    def cleanup(self):
-        """Power down and clean up GPIO pins."""
-        try:
-            with self._lock:
-                self.hx.power_down()
-                self._powered = False
-            if GPIO:
-                GPIO.cleanup()
-            logging.info("LoadCell powered down and GPIO cleaned up.")
-        except Exception as e:
-            logging.error("Error powering down HX711: %s", e)
-
-
 # Dummy implementations for other hardware (unchanged)
+
+# MQTT broker settings
+BROKER = "192.168.1.100"     # Your MQTT broker IP
+PORT = 1883
+TOPIC = "shellies/shellyplug/relay/0/command"
 class Cutter:
+    
     """Class to interface with a cutting hardware device."""
 
-    def __init__(self):
+    def __init__(self, BROKER=BROKER, PORT=PORT, TOPIC=TOPIC):
+        self.broker = BROKER
+        self.port = PORT
+        self.topic = TOPIC
+        self.client = mqtt.Client() if mqtt else None
         logging.info("Cutter initialized.")
 
+    def connect(self):
+        self.client.connect(self.broker, self.port, 60)
+        self.client.loop_start()
+        logging.info("Cutter MQTT connected.")
     def activate(self):
+        if self.client:
+            self.client.publish(self.topic, "ON")
         logging.info("Cutter activated.")
-
     def deactivate(self):
+        if self.client:
+            self.client.publish(self.topic, "OFF")
         logging.info("Cutter deactivated.")
 
     def cleanup(self):
+        self.client.loop_stop()
+        self.client.disconnect()
         logging.info("Cutter GPIO cleaned up.")
 
 
