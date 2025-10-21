@@ -97,27 +97,38 @@ class LoadCell:
         except Exception as e:
             logging.error("Error during calibration: %s", e)
 
-    def get_weight(self, samples=5):
-        """
-        Read averaged, tared, and calibrated weight from the load cell.
-        """
-        try:
-            with self._lock:
-                readings = []
-                for _ in range(samples):
-                    val = self.hx.get_raw_data()
-                    if val is not None:
-                        readings.append(val)
-                    time.sleep(0.02)
-                if not readings:
-                    return None
-                avg_val = sum(readings) / len(readings)
-                net_val = avg_val - self.offset
-                weight_grams = net_val * self.reference_unit
-            return round(weight_grams, 2)
-        except Exception as e:
-            logging.error("Error reading weight: %s", e)
-            return None
+def get_weight(self, samples=5):
+    """
+    Read averaged, tared, and calibrated weight from the load cell.
+    Handles cases where get_raw_data() returns a list of samples.
+    """
+    try:
+        with self._lock:
+            readings = []
+            for _ in range(samples):
+                val = self.hx.get_raw_data()
+                if val is None:
+                    continue
+
+                # Flatten if a list is returned
+                if isinstance(val, list):
+                    readings.extend(val)
+                else:
+                    readings.append(val)
+
+                time.sleep(0.02)
+
+            if not readings:
+                return None
+
+            avg_val = sum(readings) / len(readings)
+            net_val = avg_val - self.offset
+            weight_grams = net_val * self.reference_unit
+        return round(weight_grams, 2)
+    except Exception as e:
+        logging.error("Error reading weight: %s", e)
+        return None
+
 
     def cleanup(self):
         """Power down and clean up GPIO pins."""
