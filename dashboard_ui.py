@@ -55,10 +55,10 @@ class DashboardUI:
 
     def create_sections(self):
         icons = {
-            "order": "icons/orders.png",
-            "camera": "icons/camera.png",
-            "ingredients": "icons/ingredients.png",
-            "instructions": "icons/instructions.png"
+            "order": "/home/dfarag/ficio/proto_alpha_2_code/icons/orders.png",
+            "camera": "/home/dfarag/ficio/proto_alpha_2_code/icons/camera.png",
+            "ingredients": "/home/dfarag/ficio/proto_alpha_2_code/icons/ingredients.png",
+            "instructions": "/home/dfarag/ficio/proto_alpha_2_code/icons/instructions.png"
         }
 
         # Order
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     manager.add_order("Potato Order", {Ingredient.POTATO: 150})
     manager.add_order("Another Potato Order", {Ingredient.POTATO: 200})
     manager.add_order("Small Potato Order", {Ingredient.POTATO: 100})
-    ui.update_order([str(order) for order in manager.orders])
-    ui.update_ingredients([f"{ing.value}: {amt}g" for ing, amt in manager.ingredient_totals.items()])
-    ui.update_instructions("Welcome! Please place the vegetable in front of the camera.") 
+    ui.safe_update_order([str(order) for order in manager.orders])
+    ui.safe_update_ingredients([f"{ing.value}: {amt}g" for ing, amt in manager.ingredient_totals.items()])
+    ui.safe_update_instructions("Welcome! Please place the vegetable in front of the camera.")
     ui.root.mainloop()

@@ -116,3 +116,39 @@ class Turntable:
     def cleanup(self):
         """Cleanup GPIO resources."""
         logging.info("Turntable GPIO cleaned up.")
+
+if __name__ == "__main__":
+    # Configure basic logging to see output in the console
+    logging.basicConfig(level=logging.INFO)
+    
+    load_cell = None  # Define variable in the outer scope
+    try:
+        load_cell = LoadCell(dout_pin=5, pd_sck_pin=6, reference_unit=1)
+        print("Taring load cell, please wait...")
+        load_cell.tare()
+        print("Tare complete. Ready to measure weight.")
+        print("Press Ctrl+C to exit.")
+
+        # Loop to read weight every 50ms
+        while True:
+            weight = load_cell.get_weight(samples=5)
+            if weight is not None:
+                # Use carriage return '\r' and end="" to print on the same line
+                print(f"Weight: {weight:.2f} g      \r", end="")
+            else:
+                # Notify if a reading failed
+                print("Failed to read weight. Retrying...\r", end="")
+            
+            time.sleep(0.05)  # Wait for 50 milliseconds
+
+    except (KeyboardInterrupt, SystemExit):
+        print("\nMeasurement stopped by user.")
+    except ImportError as e:
+        logging.error("LoadCell test failed: %s", e)
+        print("Please install the required HX711 library.")
+    except Exception as e:
+        logging.error("An error occurred during the test: %s", e)
+    finally:
+        if load_cell:
+            load_cell.cleanup()
+        print("Script finished.")
