@@ -23,19 +23,10 @@ except ImportError:
     GPIO = None
     logging.warning("RPi.GPIO not found. GPIO cleanup will be skipped.")
 
-
 class LoadCell:
     """Class to interface with HX711 load cell amplifier."""
 
     def __init__(self, dout_pin, pd_sck_pin, reference_unit=1.0):
-        """
-        Initialize the load cell.
-
-        Args:
-            dout_pin (int): GPIO pin connected to HX711 DOUT.
-            pd_sck_pin (int): GPIO pin connected to HX711 SCK.
-            reference_unit (float): Calibration factor (grams per raw unit).
-        """
         if HX711 is None:
             raise ImportError("HX711 library is not available on this system.")
 
@@ -43,23 +34,31 @@ class LoadCell:
         self._lock = threading.Lock()
         self._powered = True
         self.reference_unit = reference_unit
-        self.offset = 0  # manual tare offset
+        self.offset = 0
 
         self.hx.reset()
         self.tare()
         logging.info(f"LoadCell initialized (DOUT={dout_pin}, SCK={pd_sck_pin}, ref={reference_unit})")
 
+    def _flatten(self, data):
+        """Recursively flatten any nested lists into a 1D list of numbers."""
+        if isinstance(data, list):
+            flattened = []
+            for item in data:
+                flattened.extend(self._flatten(item))
+            return flattened
+        else:
+            return [data]
+
     def tare(self, samples=15):
-        """
-        Manually tare the load cell by averaging a few readings.
-        """
+        """Manually tare the load cell by averaging multiple raw readings."""
         try:
             with self._lock:
                 readings = []
                 for _ in range(samples):
                     val = self.hx.get_raw_data()
                     if val is not None:
-                        readings.append(val)
+                        readings.extend(self._flatten(val))
                     time.sleep(0.05)
                 if readings:
                     self.offset = sum(readings) / len(readings)
@@ -70,19 +69,14 @@ class LoadCell:
             logging.error("Error during tare: %s", e)
 
     def calibrate(self, known_weight_grams, samples=15):
-        """
-        Calibrate the reference unit using a known weight.
-
-        Args:
-            known_weight_grams (float): The known weight placed on the scale.
-        """
+        """Calibrate reference unit using a known weight."""
         try:
             with self._lock:
                 readings = []
                 for _ in range(samples):
                     val = self.hx.get_raw_data()
                     if val is not None:
-                        readings.append(val)
+                        readings.extend(self._flatten(val))
                     time.sleep(0.05)
                 if readings:
                     avg_val = sum(readings) / len(readings)
@@ -96,6 +90,39 @@ class LoadCell:
                     logging.warning("No valid readings for calibration.")
         except Exception as e:
             logging.error("Error during calibration: %s", e)
+
+    def get_weight(self, samples=5):
+        """Read averaged, tared, and calibrated weight from the load cell."""
+        try:
+            with self._lock:
+                readings = []
+                for _ in range(samples):
+                    val = self.hx.get_raw_data()
+                    if val is not None:
+                        readings.extend(self._flatten(val))
+                    time.sleep(0.02)
+                if not readings:
+                    return None
+                avg_val = sum(readings) / len(readings)
+                net_val = avg_val - self.offset
+                weight_grams = net_val * self.reference_unit
+            return round(weight_grams, 2)
+        except Exception as e:
+            logging.error("Error reading weight: %s", e)
+            return None
+
+    def cleanup(self):
+        """Power down and clean up GPIO pins."""
+        try:
+            with self._lock:
+                self.hx.power_down()
+                self._powered = False
+            if GPIO:
+                GPIO.cleanup()
+            logging.info("LoadCell powered down and GPIO cleaned up.")
+        except Exception as e:
+            logging.error("Error powering down HX711: %s", e)
+
 
 def get_weight(self, samples=5):
     """
