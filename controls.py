@@ -131,9 +131,9 @@ class LoadCell:
 # Dummy implementations for other hardware (unchanged)
 
 # MQTT broker settings
-BROKER = "192.168.1.100"     # Your MQTT broker IP
+BROKER = "10.42.0.1"     # Your MQTT broker IP
 PORT = 1883
-TOPIC = "shellies/shellyplug/relay/0/command"
+TOPIC = "shellyp/rpc"
 class Cutter:
     
     """Class to interface with a cutting hardware device."""
