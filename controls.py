@@ -7,6 +7,7 @@ Currently Supports:
 - Load Cell (HX711)
 """
 
+import json
 import time
 import logging
 import threading
@@ -130,39 +131,82 @@ class LoadCell:
 
 # Dummy implementations for other hardware (unchanged)
 
-# MQTT broker settings
-BROKER = "10.42.0.1"     # Your MQTT broker IP
+BROKER = "10.42.0.1"
 PORT = 1883
-TOPIC = "shellyp/rpc"
-class Cutter:
-    
-    """Class to interface with a cutting hardware device."""
+TOPIC_RPC = "shellyp/rpc"
+TOPIC_EVENTS = "shellyp/events/rpc"
+CLIENT_ID = "cutter_controller"
 
-    def __init__(self, BROKER=BROKER, PORT=PORT, TOPIC=TOPIC):
-        self.broker = BROKER
-        self.port = PORT
-        self.topic = TOPIC
-        self.client = mqtt.Client() if mqtt else None
-        logging.info("Cutter initialized.")
+class Cutter:
+    """Control a Shelly Plug (Gen2) via MQTT."""
+
+    def __init__(self, broker=BROKER, port=PORT, topic_rpc=TOPIC_RPC, topic_events=TOPIC_EVENTS):
+        if mqtt is None:
+            raise ImportError("paho-mqtt not installed. Cutter cannot initialize.")
+
+        self.broker = broker
+        self.port = port
+        self.topic_rpc = topic_rpc
+        self.topic_events = topic_events
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, CLIENT_ID)
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
+        self.connected = False
+
+        logging.info("Cutter initialized (Shelly Plug via MQTT).")
+
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
+            self.connected = True
+            client.subscribe(self.topic_events)
+            logging.info("✅ Cutter connected to MQTT broker.")
+        else:
+            logging.error(f"❌ Cutter failed to connect. Code={reason_code}")
+
+    def on_message(self, client, userdata, msg):
+        logging.info(f"📩 Cutter message: [{msg.topic}] {msg.payload.decode(errors='ignore')}")
 
     def connect(self):
+        """Connect to MQTT broker."""
+        logging.info("Connecting Cutter to MQTT broker...")
         self.client.connect(self.broker, self.port, 60)
         self.client.loop_start()
-        logging.info("Cutter MQTT connected.")
+        time.sleep(1)
+
     def activate(self):
-        if self.client:
-            self.client.publish(self.topic, "ON")
-        logging.info("Cutter activated.")
+        """Turn ON the Shelly plug."""
+        if not self.client or not self.connected:
+            logging.warning("Cutter not connected to MQTT broker.")
+            return
+        payload = {
+            "id": 1,
+            "src": CLIENT_ID,
+            "method": "Switch.Set",
+            "params": {"id": 0, "on": True}
+        }
+        self.client.publish(self.topic_rpc, json.dumps(payload))
+        logging.info("⚙️ Cutter activated (Switch ON).")
+
     def deactivate(self):
-        if self.client:
-            self.client.publish(self.topic, "OFF")
-        logging.info("Cutter deactivated.")
+        """Turn OFF the Shelly plug."""
+        if not self.client or not self.connected:
+            logging.warning("Cutter not connected to MQTT broker.")
+            return
+        payload = {
+            "id": 2,
+            "src": CLIENT_ID,
+            "method": "Switch.Set",
+            "params": {"id": 0, "on": False}
+        }
+        self.client.publish(self.topic_rpc, json.dumps(payload))
+        logging.info("⚙️ Cutter deactivated (Switch OFF).")
 
     def cleanup(self):
-        self.client.loop_stop()
-        self.client.disconnect()
-        logging.info("Cutter GPIO cleaned up.")
-
+        """Disconnect cleanly."""
+        if self.client:
+            self.client.loop_stop()
+            self.client.disconnect()
+            logging.info("Cutter MQTT disconnected.")
 
 class Turntable:
     """Class to interface with a turntable hardware device."""
