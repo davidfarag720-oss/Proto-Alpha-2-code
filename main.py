@@ -1,59 +1,86 @@
+"""
+main.py
+--------
+Main entry point for Proto Alpha 2 automation system.
+Initializes hardware components, camera, and UI, then
+starts the main controller.
+"""
+
+import logging
 import time
-import threading
-import tkinter as tk
 from ultralytics import YOLO
 
-from dashboard_ui import DashboardUI
+from controls import LoadCell, Cutter, Turntable
 from camera_controller import CameraController
+from dashboard_ui import DashboardUI
+from main_controller import MainController
+# from order_manager import OrderManager  # if you have it
 
+# -----------------------------------------------------------------------------
+# SYSTEM SETUP
+# -----------------------------------------------------------------------------
 def main():
-    button_event = threading.Event()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s [%(levelname)s] %(message)s")
 
-    def handle_complete_click():
-        print("✅ Complete button clicked. Handling order completion...")
-        button_event.set()
-    
-    
-    # --- Initialize GUI ---
-    root = tk.Tk()
-    ui = DashboardUI(root, on_complete_click=handle_complete_click)
+    print("Initializing system...")
 
-    # --- Load YOLO model ---
-    print("Loading YOLO model...")
-    model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/pulse_check.pt")
+    # --- Initialize UI ---
+    ui = DashboardUI()
 
-    # --- Initialize Camera Controller ---
-    camera = CameraController(
-        model=model,
+    # --- Initialize hardware ---
+    try:
+        load_cell = LoadCell(dout_pin=5, pd_sck_pin=6, reference_unit=1)
+        cutter = Cutter()
+        turntable = Turntable(numPositions=6)
+        # order_manager = OrderManager()  # optional future use
+    except Exception as e:
+        logging.error(f"Hardware init failed: {e}")
+        return
+
+    # --- Initialize vision system ---
+    try:
+        model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/pulse_check.pt")
+        camera = CameraController(model=model, ui=ui)
+    except Exception as e:
+        logging.error(f"Camera or model init failed: {e}")
+        return
+
+    # --- Initialize main controller ---
+    main_controller = MainController(
         ui=ui,
-        update_interval=3.0,  # seconds between updates
+        camera=camera,
+        cutter=cutter,
+        load_cell=load_cell,
+        turntable=turntable,
+        order_manager=None  # or order_manager
     )
 
-    # --- Start continuous mode in background ---
-    camera.start_continuous_mode()
-    print("📸 Continuous camera mode started.")
+    # -----------------------------------------------------------------------------
+    # MAIN LOOP
+    # -----------------------------------------------------------------------------
+    try:
+        logging.info("Starting main control loop...")
+        camera.start_continuous_mode()
+        main_controller.run()  # or main_controller.start_loop() if you made it threaded
+    except KeyboardInterrupt:
+        logging.info("Shutdown requested by user.")
+    except Exception as e:
+        logging.error(f"Main loop error: {e}")
+    finally:
+        logging.info("Shutting down system...")
+        try:
+            camera.shutdown()
+            load_cell.cleanup()
+            cutter.cleanup()
+            turntable.cleanup()
+            # order_manager.cleanup() if applicable
+        except Exception as e:
+            logging.error(f"Cleanup error: {e}")
+        print("System safely shut down.")
 
-    # --- Schedule a test action after a few seconds ---
-    def test_capture():
-        print("\n🔍 Requesting manual object detection...")
-        objects = camera.get_latest_objects()
-        print("Detected objects:", objects)
-        ui.update_instructions("Manual detection complete!")
-
-    # Run the test after 10 seconds (in a separate thread so it doesn't block the GUI)
-    threading.Timer(10.0, test_capture).start()
-
-    # --- Graceful shutdown when window closes ---
-    def on_close():
-        print("\n🛑 Shutting down...")
-        camera.shutdown()
-        root.destroy()
-
-    root.protocol("WM_DELETE_WINDOW", on_close)
-
-    # --- Start GUI loop ---
-    root.mainloop()
-
-
+# -----------------------------------------------------------------------------
+# ENTRY POINT
+# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     main()

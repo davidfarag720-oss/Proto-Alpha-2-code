@@ -4,6 +4,8 @@ from PIL import Image
 import cv2
 from picamera2 import Picamera2
 from dashboard_ui import DashboardUI
+from ultralytics import YOLO
+
 class CameraController:
     def __init__(self, model, ui, update_interval=2.0,
                  save_path="/home/dfarag/ficio/proto_alpha_2_code/CV_Images/latest.jpg"):
