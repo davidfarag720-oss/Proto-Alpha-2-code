@@ -3,7 +3,7 @@ import time
 from PIL import Image
 import cv2
 from picamera2 import Picamera2
-
+from dashboard_ui import DashboardUI
 class CameraController:
     def __init__(self, model, ui, update_interval=2.0,
                  save_path="/home/dfarag/ficio/proto_alpha_2_code/CV_Images/latest.jpg"):
@@ -142,3 +142,16 @@ class CameraController:
         self.stop_continuous_mode()
         self.picam2.stop()
         print("Camera fully stopped.")
+
+if __name__ == "__main__":
+    ui = DashboardUI()
+
+    model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/pulse_check.pt")
+    camera = CameraController(model=model, ui=ui)
+    camera.start_continuous_mode()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Shutting down camera...")
+        camera.shutdown()
