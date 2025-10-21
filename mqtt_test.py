@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
         logging.info("Turning ON plug for 3 seconds...")
         plug.activate()
-        time.sleep(3)
+        time.sleep(10)
 
         logging.info("Turning OFF plug...")
         plug.deactivate()
