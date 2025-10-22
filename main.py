@@ -46,6 +46,11 @@ def main():
         return
 
     order_manager.add_order("Potato Order", {Ingredient.POTATO: 150})
+    # 🔹 Update GUI with initial data
+    ui.safe_update_order([str(order) for order in order_manager.orders])
+    ui.safe_update_ingredients([
+        f"{ing.value}: {amt}g" for ing, amt in order_manager.ingredient_totals.items()
+    ])
 
     # --- Initialize main controller ---
     main_controller = MainController(
@@ -64,7 +69,6 @@ def main():
         """Run the main control logic on a background thread."""
         try:
             logging.info("Controller thread started.")
-            camera.start_continuous_mode()
             main_controller.run()
         except Exception as e:
             logging.exception(f"Main controller error: {e}")

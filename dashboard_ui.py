@@ -142,10 +142,15 @@ class DashboardUI:
         """Update the camera display with a new image."""
         try:
             img = Image.open(image_path)
-            #img = img.resize((self.cam_label.winfo_width(), self.cam_label.winfo_height()))
+
+            # Resize dynamically to fit the current widget size
+            w = max(self.cam_label.winfo_width(), 1)
+            h = max(self.cam_label.winfo_height(), 1)
+            img = img.resize((w, h), Image.LANCZOS)
+
             photo = ImageTk.PhotoImage(img)
             self.cam_label.config(image=photo)
-            self.cam_image_ref = photo  # keep a reference to avoid garbage collection
+            self.cam_image_ref = photo
         except Exception as e:
             print(f"Error loading image: {e}")
 

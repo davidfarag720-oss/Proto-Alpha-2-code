@@ -126,16 +126,29 @@ class MainController:
         self._ui_wait_for_continue()
 
     def _check_quality(self, ingredient_name):
-        """Run YOLO check to confirm vegetable is healthy."""
-        self._ui_update_instructions("Checking vegetable quality...")
+        """Capture a fresh image, display it, and check vegetable quality."""
+        self._ui_update_instructions("Capturing image for quality check...")
+
+        # Capture single frame (new method in CameraController)
+        try:
+            image_path = self.camera.capture_frame()
+            if image_path:
+                self.ui.safe_update_camera_image(image_path)
+        except Exception:
+            self.logger.exception("Camera capture failed")
+            return False
+
+        self._ui_update_instructions("Analyzing vegetable quality...")
         detections = self.camera.get_latest_objects()
         healthy = self.is_healthy(detections)
+
         if not healthy:
             self._ui_update_instructions(
                 f"{ingredient_name} appears unhealthy. Please replace it and click Continue."
             )
             self._ui_wait_for_continue()
         return healthy
+
 
     # -----------------------------
     # 🔹 Cutting & Weight Control
@@ -273,8 +286,25 @@ class MainController:
         except Exception:
             self.logger.exception("Error while evaluating detections")
             return False
+        
+    def _ui_update_order_and_ingredients(self):
+        try:
+            self._ui_update_order([str(o) for o in self.order_manager.orders])
+            self._ui_update_ingredients([
+                f"{ing.value}: {amt}g" for ing, amt in self.order_manager.ingredient_totals.items()
+            ])
+        except Exception:
+            self.logger.exception("Failed to refresh order/ingredient display")
 
-        # -----------------------------
+    def _ui_update_order(self, items):
+        if hasattr(self.ui, "safe_update_order"):
+            self.ui.safe_update_order(items)
+
+    def _ui_update_ingredients(self, ingredients):
+        if hasattr(self.ui, "safe_update_ingredients"):
+            self.ui.safe_update_ingredients(ingredients)
+
+    # -----------------------------
     # UI helper wrappers (thread-safe if DashboardUI supports it)
     # -----------------------------
     def _ui_update_instructions(self, text):
