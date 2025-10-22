@@ -69,7 +69,7 @@ class CameraController:
     # ----------------------------------------------------------------------
     # Take a new image and get detections
     # ----------------------------------------------------------------------
-    def get_latest_objects(self):
+    def get_latest_objects(self, DashboardUI=None):
         # capture under lock, then process without holding lock
         with self._lock:
             tmp_path = self.save_path
@@ -78,6 +78,8 @@ class CameraController:
         results = self.model(tmp_path)
         detections = self._parse_detections(results)
         self.annotate_image(tmp_path, detections)
+        if(DashboardUI is not None):
+            DashboardUI.safe_update_camera_image(tmp_path)
         return detections
 
     # ----------------------------------------------------------------------

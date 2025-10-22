@@ -127,23 +127,13 @@ class MainController:
 
     def _check_quality(self, ingredient_name):
         """Capture a fresh image, display it, and check vegetable quality."""
-        self._ui_update_instructions("Capturing image for quality check...")
-
-        # Capture single frame (new method in CameraController)
-        try:
-            image_path = self.camera.capture_frame()
-            if image_path:
-                self.ui.safe_update_camera_image(image_path)
-        except Exception:
-            self.logger.exception("Camera capture failed")
-            return False
 
         self._ui_update_instructions("Analyzing vegetable quality...")
-        detections = self.camera.get_latest_objects()
+        detections = self.camera.get_latest_objects(self.ui)
         healthy = self.is_healthy(detections)
 
         if not healthy:
-            self._ui_update_instructions(
+            self._ui_update_instructions(   
                 f"{ingredient_name} appears unhealthy. Please replace it and click Continue."
             )
             self._ui_wait_for_continue()
@@ -280,9 +270,9 @@ class MainController:
         try:
             for obj in detections:
                 s = str(obj).lower()
-                if "healthy" in s or "potato" in s:
-                    return True
-            return False
+                if "Unhealthy" in s:
+                    return False
+            return True
         except Exception:
             self.logger.exception("Error while evaluating detections")
             return False
