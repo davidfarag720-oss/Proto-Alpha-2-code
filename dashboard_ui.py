@@ -20,6 +20,8 @@ class DashboardUI:
         self.setup_grid()
         self.create_sections()
         self.create_continue_button()
+        self.create_scale_display()
+
 
     def setup_grid(self):
         for i in range(2):
@@ -52,6 +54,21 @@ class DashboardUI:
         content.grid(row=1, column=0, sticky="nsew")
 
         return frame, content
+    
+    def create_scale_display(self):
+        """Create a small box showing current scale weight."""
+        self.scale_label = tk.Label(
+            self.root,
+            text="Scale: -- g",
+            bg="#222222",
+            fg="#00FFAA",
+            font=("Segoe UI", 11, "bold"),
+            relief="ridge",
+            borderwidth=1,
+            padx=8, pady=4
+        )
+        # Position it in the bottom-right corner above the Instructions box
+        self.scale_label.place(relx=0.85, rely=0.95, anchor="se")
 
     def create_sections(self):
         icons = {
@@ -139,20 +156,42 @@ class DashboardUI:
         self.inst_label.config(text=text)
 
     def update_camera_image(self, image_path):
-        """Update the camera display with a new image."""
+        """Update the camera display with a new image (preserve aspect ratio)."""
         try:
             img = Image.open(image_path)
 
-            # Resize dynamically to fit the current widget size
+            # Target display size
             w = max(self.cam_label.winfo_width(), 1)
             h = max(self.cam_label.winfo_height(), 1)
-            img = img.resize((w, h), Image.LANCZOS)
 
-            photo = ImageTk.PhotoImage(img)
+            # Preserve aspect ratio
+            img_ratio = img.width / img.height
+            target_ratio = w / h
+
+            if img_ratio > target_ratio:
+                # Image is wider → fit to width
+                new_w = w
+                new_h = int(w / img_ratio)
+            else:
+                # Image is taller → fit to height
+                new_h = h
+                new_w = int(h * img_ratio)
+
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+
+            # Create a new blank image (same as label size) and center the resized one
+            background = Image.new("RGB", (w, h), color=(0, 0, 0))
+            offset = ((w - new_w) // 2, (h - new_h) // 2)
+            background.paste(img, offset)
+
+            photo = ImageTk.PhotoImage(background)
             self.cam_label.config(image=photo)
             self.cam_image_ref = photo
         except Exception as e:
             print(f"Error loading image: {e}")
+    def update_scale_reading(self, grams):
+        """Update the displayed scale weight."""
+        self.scale_label.config(text=f"Scale: {grams:.2f} g")
 
     def _schedule(self, fn, *args, **kwargs):
         """Schedule a function to run on the tkinter mainloop thread."""
@@ -177,6 +216,9 @@ class DashboardUI:
     def safe_update_ingredients(self, ingredients):
         """Thread-safe wrapper for update_ingredients."""
         self._schedule(self.update_ingredients, ingredients)
+    def safe_update_scale_reading(self, grams):
+        """Thread-safe update for the scale reading."""
+        self._schedule(self.update_scale_reading, grams)
     # -----------------------------
     # 🔹 Button Listener
     # -----------------------------

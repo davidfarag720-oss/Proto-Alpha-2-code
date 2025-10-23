@@ -46,7 +46,7 @@ def main():
         logging.error(f"Camera or model init failed: {e}")
         return
 
-    order_manager.add_order("Potato Order", {Ingredient.POTATO: 150})
+    order_manager.add_order("Large Fries", {Ingredient.POTATO: 250})
     # 🔹 Update GUI with initial data
     ui.safe_update_order([str(order) for order in order_manager.orders])
     ui.safe_update_ingredients([

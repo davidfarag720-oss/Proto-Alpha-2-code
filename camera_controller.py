@@ -119,7 +119,7 @@ class CameraController:
                     text = f"{label} {conf:.2f}"
                     cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 10)
                     cv2.putText(img, text, (x1, max(y1 - 10, 30)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 10.0, (255, 0, 100), 20)
+                                cv2.FONT_HERSHEY_SIMPLEX, 12.0, (255, 0, 100), 25)
                 except Exception as e:
                     print("[CameraController] Bad detection entry:", e)
         else:

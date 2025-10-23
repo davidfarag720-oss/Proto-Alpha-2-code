@@ -71,12 +71,36 @@ class MainController:
     # 🔹 Order-Level Logic
     # -----------------------------
     def _wait_for_order(self):
-        """Wait until an order is available."""
+        """Wait until an order is available. 
+        In dummy mode, allows manual addition via Continue button."""
         pending = self.order_manager.get_pending_orders()
         if pending:
             return pending[0]
-        self._ui_update_instructions("Waiting for orders...")
-        return None
+
+        # No orders yet — show waiting message
+        self._ui_update_instructions("Waiting for orders... Click Continue to add a test order.")
+
+        # Wait for user to press Continue
+        self._ui_wait_for_continue()
+
+        # Add a dummy order when Continue is pressed
+        try:
+            from order_manager import Ingredient
+            self.order_manager.add_order("Small Fries", {Ingredient.POTATO: 100})
+            self.logger.info("Dummy order added: Small Fries (100g Potato)")
+        except Exception:
+            self.logger.exception("Failed to add dummy order")
+
+        # Update GUI with new order and ingredient totals
+        try:
+            self._ui_update_order_and_ingredients()
+        except Exception:
+            self.logger.exception("Failed to refresh order and ingredient display")
+
+        # Return first pending order (the one just added)
+        pending = self.order_manager.get_pending_orders()
+        return pending[0] if pending else None
+
 
     def _process_order(self, order):
         """Process all ingredients for a given order."""
@@ -154,12 +178,16 @@ class MainController:
             return
 
         last_weight = self.load_cell.get_weight() or 0.0
+        if last_weight is not None:
+            self.ui.safe_update_scale_reading(last_weight)
         no_change_count = 0
 
         try:
             while not self._stop_event.is_set():
                 time.sleep(0.1)
                 w = self.load_cell.get_weight(samples=1)
+                if w is not None:
+                    self.ui.safe_update_scale_reading(w)
                 # robust fallback
                 if w is None:
                     w = last_weight
@@ -230,10 +258,14 @@ class MainController:
 
         stable_count = 0
         last = self.load_cell.get_weight() or 0.0
+        self.ui.safe_update_scale_reading(last)
+        self._ui_update_instructions("Finalizing... please wait.")
+
         try:
             while stable_count < self.finish_no_change_checks and not self._stop_event.is_set():
                 time.sleep(0.05)
                 w = self.load_cell.get_weight(samples=1)
+                self.ui.safe_update_scale_reading(w)
                 if w is None:
                     w = last
                 if abs(w - last) < self.weight_stable_threshold:
