@@ -11,16 +11,16 @@ class MainController:
         self.turntable = turntable
         self.order_manager = order_manager
 
-        self.processed_ingredients = {}
+        self.processed_ingredients: dict = {}
         self._stop_event = threading.Event()
 
         # protect shared state
         self._lock = threading.Lock()
 
         # Tuning parameters
-        self.weight_stable_threshold = 500  # grams
-        self.no_change_checks = 40  # 2s (at 50ms)
-        self.finish_no_change_checks = 80  # 4s (at 50ms)
+        self.weight_stable_threshold = 100  # grams
+        self.no_change_checks = 20  # 2s (at 100ms)
+        self.finish_no_change_checks = 20  # 2s (at 100ms)
 
         # logger
         self.logger = logging.getLogger("MainController")
@@ -69,42 +69,37 @@ class MainController:
 
     # -----------------------------
     # 🔹 Order-Level Logic
-    # -----------------------------
+        # -----------------------------
     def _wait_for_order(self):
-        """Wait until an order is available. 
-        In dummy mode, allows manual addition via Continue button."""
+        """Wait until an order is available."""
         pending = self.order_manager.get_pending_orders()
         if pending:
             return pending[0]
 
-        # No orders yet — show waiting message
+        # No orders -> wait and allow test order creation
         self._ui_update_instructions("Waiting for orders... Click Continue to add a test order.")
+        self.ui_wait_for_continue()
 
-        # Wait for user to press Continue
-        self._ui_wait_for_continue()
+        # Add dummy order when Continue is pressed
+        from order_manager import Ingredient
+        self.order_manager.add_order("Small Fries", {Ingredient.POTATO: 100})
 
-        # Add a dummy order when Continue is pressed
-        try:
-            from order_manager import Ingredient
-            self.order_manager.add_order("Small Fries", {Ingredient.POTATO: 100})
-            self.logger.info("Dummy order added: Small Fries (100g Potato)")
-        except Exception:
-            self.logger.exception("Failed to add dummy order")
+        # Update UI
+        self.ui.safe_update_order([str(order) for order in self.order_manager.orders])
+        self.ui.safe_update_ingredients([
+            f"{ing.value}: {amt}g" for ing, amt in self.order_manager.ingredient_totals.items()
+        ])
 
-        # Update GUI with new order and ingredient totals
-        try:
-            self._ui_update_order_and_ingredients()
-        except Exception:
-            self.logger.exception("Failed to refresh order and ingredient display")
+        return self.order_manager.get_pending_orders()[0]
 
-        # Return first pending order (the one just added)
-        pending = self.order_manager.get_pending_orders()
-        return pending[0] if pending else None
 
 
     def _process_order(self, order):
         """Process all ingredients for a given order."""
         # defensive: some order_manager APIs require the order identifier as argument
+        order.mark_in_progress()
+        self.ui.safe_update_order([str(o) for o in self.order_manager.orders])
+
         try:
             try:
                 ingredients = self.order_manager.get_ingredients(order)
@@ -124,7 +119,8 @@ class MainController:
 
         self._ui_update_instructions(f"✅ Order completed: {order}")
         try:
-            self.order_manager.remove_order(0)
+            order.mark_completed()
+            self._ui_update_order([str(o) for o in self.order_manager.orders])
         except Exception:
             self.logger.exception("Failed to remove order")
 
@@ -263,7 +259,7 @@ class MainController:
 
         try:
             while stable_count < self.finish_no_change_checks and not self._stop_event.is_set():
-                time.sleep(0.05)
+                time.sleep(0.1)
                 w = self.load_cell.get_weight(samples=1)
                 self.ui.safe_update_scale_reading(w)
                 if w is None:
@@ -302,7 +298,7 @@ class MainController:
         try:
             for obj in detections:
                 s = str(obj).lower()
-                if "Unhealthy" in s:
+                if "unhealthy" in s:
                     return False
             return True
         except Exception:

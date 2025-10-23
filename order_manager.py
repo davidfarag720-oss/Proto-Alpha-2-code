@@ -8,16 +8,19 @@ class Ingredient(Enum):
 
 class Order:
     def __init__(self, order_id: int, order_name: str, ingredients: dict[Ingredient, float]):
-        """
-        ingredients: dict of Ingredient -> grams required
-        """
         self.order_id = order_id
         self.order_name = order_name
         self.ingredients = ingredients
+        self.status = "pending"  # "pending", "in_progress", "completed"
+
+    def mark_in_progress(self):
+        self.status = "in_progress"
+
+    def mark_completed(self):
+        self.status = "completed"
 
     def __repr__(self):
-        formatted = {ing.value: f"{amt}g" for ing, amt in self.ingredients.items()}
-        return f"{self.order_name}"
+        return f"{self.order_name} - {self.status}"
 
 
 class OrderManager:
@@ -30,12 +33,11 @@ class OrderManager:
     # Add order
     # ----------------------------------------------------------------------
     def add_order(self, order_name: str, ingredients: dict[Ingredient, float]):
-        """Add an order and update ingredient totals efficiently."""
         order = Order(self.next_order_id, order_name, ingredients)
         self.next_order_id += 1
         self.orders.append(order)
 
-        # Increment totals directly
+        # Update total ingredient requirements
         for ingredient, grams in ingredients.items():
             self.ingredient_totals[ingredient] = self.ingredient_totals.get(ingredient, 0.0) + grams
 
@@ -63,9 +65,8 @@ class OrderManager:
     # Accessors
     # ----------------------------------------------------------------------
     def get_pending_orders(self):
-        """Return all pending orders."""
-        return list(self.orders)
+        """Return all pending or in-progress orders (not completed)."""
+        return [o for o in self.orders if o.status != "completed"]
 
     def get_ingredients(self):
-        """Return current total ingredient requirements in grams."""
         return dict(self.ingredient_totals)

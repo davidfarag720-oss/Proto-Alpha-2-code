@@ -217,6 +217,7 @@ class Turntable:
         logging.info("Turntable initialized.")
 
     def moveToPosition(self, position: int):
+        time.sleep(3.5)  # Simulate movement delay
         logging.info(f"Turntable moving to position {position}.")
 
     def cleanup(self):
