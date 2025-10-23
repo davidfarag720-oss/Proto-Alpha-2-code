@@ -18,9 +18,9 @@ class MainController:
         self._lock = threading.Lock()
 
         # Tuning parameters
-        self.weight_stable_threshold = 10.0  # grams
-        self.no_change_checks = 60  # 3s (at 50ms)
-        self.finish_no_change_checks = 100  # 5s (at 50ms)
+        self.weight_stable_threshold = 500  # grams
+        self.no_change_checks = 40  # 2s (at 50ms)
+        self.finish_no_change_checks = 80  # 4s (at 50ms)
 
         # logger
         self.logger = logging.getLogger("MainController")
@@ -158,7 +158,7 @@ class MainController:
 
         try:
             while not self._stop_event.is_set():
-                time.sleep(0.05)
+                time.sleep(0.1)
                 w = self.load_cell.get_weight(samples=1)
                 # robust fallback
                 if w is None:

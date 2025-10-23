@@ -31,6 +31,7 @@ def main():
     try:
         load_cell = LoadCell(dout_pin=5, pd_sck_pin=6)
         cutter = Cutter()
+        cutter.connect()
         turntable = Turntable(numPositions=6)
         order_manager = OrderManager()
     except Exception as e:
