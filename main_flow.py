@@ -76,12 +76,12 @@ class MainController:
             return pending[0]
 
         # No orders -> wait and allow test order creation
-        self._ui_update_instructions("Waiting for orders... Click Continue to add a test order.")
+        self._ui_update_instructions("No pending orders. Click Continue to add a test order.")
         self._ui_wait_for_continue()
 
         # Add dummy order when Continue is pressed
         from order_manager import Ingredient
-        self.order_manager.add_order("Small Fries", {Ingredient.POTATO: 100})
+        self.order_manager.add_order("Small Fries", {Ingredient.POTATO: 1000})
 
         # Update UI
         self.order_manager.update_ui(self.ui, self.processed_ingredients)
@@ -135,15 +135,15 @@ class MainController:
             self.processed_ingredients[ingredient_enum] < self.required_ingredients[ingredient_enum]
             and not self._stop_event.is_set()
         ):
-            self._prompt_user_to_place(ingredient_name)
             if not self._check_quality(ingredient_name):
                 continue
+            self._prompt_user_to_place(ingredient_name)
             self._run_cutter_until_weight_reached(ingredient_enum)
         self._finish_ingredient(ingredient_enum, pre_process_weight)
 
     def _prompt_user_to_place(self, ingredient_name):
         """Ask user to place ingredient and wait for continue."""
-        self._ui_update_instructions(f"Please place {ingredient_name} in chamber and click Continue.")
+        self._ui_update_instructions(f"Please add in {ingredient_name}.")
         self._ui_wait_for_continue()
 
     def _check_quality(self, ingredient_name):
@@ -155,7 +155,7 @@ class MainController:
 
         if not healthy:
             self._ui_update_instructions(   
-                f"{ingredient_name} appears unhealthy. Please replace it and click Continue."
+                f"A {ingredient_name} appears unhealthy. Please refer to the image and replace it then click Continue."
             )
             self._ui_wait_for_continue()
         return healthy
@@ -176,16 +176,12 @@ class MainController:
             return
 
         last_weight = self.load_cell.get_weight() or 0.0
-        if last_weight is not None:
-            self.ui.safe_update_scale_reading(last_weight)
         no_change_count = 0
 
         try:
             while not self._stop_event.is_set():
                 time.sleep(0.1)
                 w = self.load_cell.get_weight(samples=1)
-                if w is not None:
-                    self.ui.safe_update_scale_reading(w)
                 # robust fallback
                 if w is None:
                     w = last_weight
@@ -222,9 +218,10 @@ class MainController:
                         self.cutter.deactivate()
                     except Exception:
                         self.logger.exception("Failed to deactivate cutter on completion")
-                    self._rotate_turntable()
+                    #self._rotate_turntable()
                     # Wait for output to settle
-                    self._resume_until_stable()
+                    #self._resume_until_stable()
+
                     break
 
                 # Detect stall (no weight change)
@@ -256,14 +253,12 @@ class MainController:
 
         stable_count = 0
         last = self.load_cell.get_weight() or 0.0
-        self.ui.safe_update_scale_reading(last)
         self._ui_update_instructions("Finalizing... please wait.")
 
         try:
             while stable_count < self.finish_no_change_checks and not self._stop_event.is_set():
                 time.sleep(0.1)
                 w = self.load_cell.get_weight(samples=1)
-                self.ui.safe_update_scale_reading(w)
                 if w is None:
                     w = last
                 if abs(w - last) < self.weight_stable_threshold:
@@ -294,7 +289,7 @@ class MainController:
     # 🔹 Utility
     # -----------------------------
     def is_healthy(self, detections):
-        """Dummy logic: Assume healthy if 'potato' or 'healthy' detected in any label."""
+        """Dummy logic: Assume unhealthy if 'unhealthy' detected in any label."""
         if not detections:
             return False
         try:

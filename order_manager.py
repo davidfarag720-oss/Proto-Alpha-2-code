@@ -84,10 +84,10 @@ class OrderManager:
         # --------------------------
         # 1. Prepare order display
         # --------------------------
-        pending_orders = self.get_pending_orders()
-        formatted_orders = []
-        for order in pending_orders:
-            formatted_orders.append(f"{order.order_name}: {order.status}")
+        # pending_orders = self.get_pending_orders()
+        # formatted_orders = []
+        # for order in pending_orders:
+        #     formatted_orders.append(f"{order.order_name}: {order.status}")
 
         # --------------------------
         # 2. Prepare ingredient display
@@ -104,5 +104,5 @@ class OrderManager:
         # --------------------------
         # 3. Update the UI
         # --------------------------
-        ui.safe_update_order(formatted_orders)
+        # ui.safe_update_order(formatted_orders)
         ui.safe_update_ingredients(ingredient_display)

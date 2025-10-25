@@ -11,6 +11,7 @@ import json
 import time
 import logging
 import threading
+import random
 try:
     import paho.mqtt.client as mqtt
 except ImportError:
@@ -41,6 +42,7 @@ class LoadCell:
         self._powered = True
         self.reference_unit = 1 / reference_unit
         self.offset = 0
+        self.weight = 0.0
 
         self.hx.reset()
         self.tare()
@@ -99,6 +101,11 @@ class LoadCell:
 
     def get_weight(self, samples=5):
         """Read averaged, tared, and calibrated weight from the load cell."""
+        weight += random.randint(0, 10)  # simulate weight change
+        return weight
+
+        # will deactivate this right now but returning a dummy value
+        ''''
         try:
             with self._lock:
                 readings = []
@@ -116,6 +123,7 @@ class LoadCell:
         except Exception as e:
             logging.error("Error reading weight: %s", e)
             return None
+            '''
 
     def cleanup(self):
         """Power down and clean up GPIO pins."""
@@ -203,6 +211,7 @@ class Cutter:
 
     def cleanup(self):
         """Disconnect cleanly."""
+        self.deactivate()
         if self.client:
             self.client.loop_stop()
             self.client.disconnect()
@@ -217,7 +226,7 @@ class Turntable:
         logging.info("Turntable initialized.")
 
     def moveToPosition(self, position: int):
-        time.sleep(3.5)  # Simulate movement delay
+        time.sleep(10)  # Simulate movement delay
         logging.info(f"Turntable moving to position {position}.")
 
     def cleanup(self):

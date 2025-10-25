@@ -4,6 +4,7 @@ import threading
 from tkinter import ttk
 from PIL import Image, ImageTk
 
+
 class DashboardUI:
     def __init__(self, on_continue_click=None):
         self.on_continue_click = on_continue_click
@@ -13,22 +14,25 @@ class DashboardUI:
         self.root.configure(bg="#1E1E1E")
         self.root.geometry("1200x700")
 
-        # We'll store references to each content area here
+        # Store references to each content area
         self.sections = {}
 
         self.setup_grid()
         self.create_sections()
         self.create_continue_button()
-        self.create_scale_display()
 
-
+    # --------------------------------------------------
+    # Layout
+    # --------------------------------------------------
     def setup_grid(self):
-        for i in range(2):
-            self.root.rowconfigure(i, weight=1, uniform="row")
-        for j in range(2):
-            self.root.columnconfigure(j, weight=1, uniform="col")
+        """Define grid layout: 2 rows (top large, bottom split), 2 columns."""
+        self.root.rowconfigure(0, weight=3, uniform="row")  # Top (CV Results)
+        self.root.rowconfigure(1, weight=1, uniform="row")  # Bottom (Progress + Instructions)
+        self.root.columnconfigure(0, weight=1, uniform="col")
+        self.root.columnconfigure(1, weight=1, uniform="col")
 
     def section(self, parent, title, icon_path=None):
+        """Reusable section with title + optional icon."""
         frame = ttk.Frame(parent, padding=10)
         frame.grid_propagate(False)
         frame.columnconfigure(0, weight=1)
@@ -53,73 +57,77 @@ class DashboardUI:
         content.grid(row=1, column=0, sticky="nsew")
 
         return frame, content
-    
-    def create_scale_display(self):
-        """Create a small box showing current scale weight."""
-        self.scale_label = tk.Label(
-            self.root,
-            text="Scale: -- g",
-            bg="#222222",
-            fg="#00FFAA",
-            font=("Segoe UI", 11, "bold"),
-            relief="ridge",
-            borderwidth=1,
-            padx=8, pady=4
-        )
-        # Position it in the bottom-right corner above the Instructions box
-        self.scale_label.place(relx=0.85, rely=0.95, anchor="se")
 
+    # --------------------------------------------------
+    # Sections
+    # --------------------------------------------------
     def create_sections(self):
         icons = {
-            "order": "/home/dfarag/ficio/proto_alpha_2_code/icons/orders.png",
-            "camera": "/home/dfarag/ficio/proto_alpha_2_code/icons/camera.png",
-            "ingredients": "/home/dfarag/ficio/proto_alpha_2_code/icons/ingredients.png",
-            "instructions": "/home/dfarag/ficio/proto_alpha_2_code/icons/instructions.png"
+            "camera": "icons/camera.png",
+            "ingredients": "icons/ingredients.png",
+            "instructions": "icons/instructions.png"
         }
 
-        # Order
-        order_frame, order_content = self.section(self.root, "Order", icons["order"])
-        order_frame.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
-        self.sections["order"] = order_content
-        self.order_label = tk.Label(order_content, text="", bg="#333333", fg="white", font=("Segoe UI", 12), justify="left", anchor="nw")
-        self.order_label.pack(anchor="w", fill="both", padx=10, pady=10)
-
-        # Camera
-        cam_frame, cam_content = self.section(self.root, "Camera", icons["camera"])
-        cam_frame.grid(row=0, column=1, sticky="nsew", padx=8, pady=8)
+        # --- CV RESULTS (Top, spans full width)
+        cam_frame, cam_content = self.section(self.root, "CV Results", icons["camera"])
+        cam_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=8, pady=8)
         self.sections["camera"] = cam_content
         self.cam_label = tk.Label(cam_content, bg="black")
         self.cam_label.pack(expand=True, fill="both", padx=10, pady=10)
-        self.cam_image_ref = None  # to prevent garbage collection
+        self.cam_image_ref = None  # prevent GC
 
-        # Ingredients
-        ing_frame, ing_content = self.section(self.root, "Ingredients", icons["ingredients"])
+        # --- INGREDIENT PROGRESS (Bottom Left)
+        ing_frame, ing_content = self.section(self.root, "Ingredient Progress", icons["ingredients"])
         ing_frame.grid(row=1, column=0, sticky="nsew", padx=8, pady=8)
         self.sections["ingredients"] = ing_content
-        self.ing_label = tk.Label(ing_content, text="", bg="#333333", fg="white", font=("Segoe UI", 12), justify="left", anchor="nw")
-        self.ing_label.pack(anchor="w", fill="both", padx=10, pady=10)
+        self.ing_label = tk.Label(
+            ing_content,
+            text="",
+            bg="#333333",
+            fg="white",
+            font=("Segoe UI", 24, "bold"),
+            justify="center",
+            anchor="center"
+        )
+        self.ing_label.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # Instructions
+        # --- INSTRUCTIONS (Bottom Right)
         inst_frame, inst_content = self.section(self.root, "Instructions", icons["instructions"])
         inst_frame.grid(row=1, column=1, sticky="nsew", padx=8, pady=8)
         self.sections["instructions"] = inst_content
-        self.inst_label = tk.Label(inst_content, text="", bg="#333333", fg="white", font=("Segoe UI", 12), wraplength=250, justify="left")
+        self.inst_label = tk.Label(
+            inst_content,
+            text="",
+            bg="#333333",
+            fg="white",
+            font=("Segoe UI", 14),
+            wraplength=250,
+            justify="left"
+        )
         self.inst_label.pack(anchor="w", fill="both", padx=10, pady=10)
 
+    # --------------------------------------------------
+    # Continue button
+    # --------------------------------------------------
     def create_continue_button(self):
-        self.continue_btn = tk.Button(self.root, text="Continue", bg="#00C7A5", fg="white",
-                                      font=("Segoe UI", 12, "bold"), borderwidth=0, relief="flat",
-                                      command=self._internal_on_continue_click)
+        self.continue_btn = tk.Button(
+            self.root,
+            text="Continue",
+            bg="#00C7A5",
+            fg="white",
+            font=("Segoe UI", 12, "bold"),
+            borderwidth=0,
+            relief="flat",
+            command=self._internal_on_continue_click
+        )
         self.continue_btn.place(relx=0.95, rely=0.95, anchor="se")
+
     def _internal_on_continue_click(self):
-        """Internal handler invoked by the button (GUI thread)."""
-        # set the event so any waiting controller thread wakes up
         try:
             self.continue_event.set()
         except Exception:
             pass
 
-        # also call external callback if provided (non-blocking)
         if callable(self.on_continue_click):
             try:
                 self.on_continue_click()
@@ -127,58 +135,32 @@ class DashboardUI:
                 print("Error in on_continue_click callback:", e)
 
     def wait_for_continue(self, timeout=None):
-        """
-        Blocks until Continue is pressed.
-        Call with timeout in seconds if you want to bail out.
-        Returns True if the event fired, False if timed out.
-        """
-        # clear any previous event state, then wait
         self.continue_event.clear()
         return self.continue_event.wait(timeout=timeout)
 
-    # -----------------------------
-    # 🔹 Update Functions
-    # -----------------------------
-
-    def update_order(self, items):
-        """Update the order section with a list of items."""
-        text = "\n".join([f"• {item}" for item in items])
-        self.order_label.config(text=text)
-
-    def update_ingredients(self, ingredients):
-        """Update the ingredients section."""
-        text = "\n".join([f"• {ing}" for ing in ingredients])
+    # --------------------------------------------------
+    # Update Functions
+    # --------------------------------------------------
+    def update_ingredients(self, text):
         self.ing_label.config(text=text)
 
     def update_instructions(self, text):
-        """Update the instructions text."""
         self.inst_label.config(text=text)
 
     def update_camera_image(self, image_path):
-        """Update the camera display with a new image (preserve aspect ratio)."""
         try:
             img = Image.open(image_path)
-
-            # Target display size
             w = max(self.cam_label.winfo_width(), 1)
             h = max(self.cam_label.winfo_height(), 1)
-
-            # Preserve aspect ratio
             img_ratio = img.width / img.height
             target_ratio = w / h
 
             if img_ratio > target_ratio:
-                # Image is wider → fit to width
-                new_w = w
-                new_h = int(w / img_ratio)
+                new_w, new_h = w, int(w / img_ratio)
             else:
-                # Image is taller → fit to height
-                new_h = h
-                new_w = int(h * img_ratio)
+                new_h, new_w = h, int(h * img_ratio)
 
             img = img.resize((new_w, new_h), Image.LANCZOS)
-
-            # Create a new blank image (same as label size) and center the resized one
             background = Image.new("RGB", (w, h), color=(0, 0, 0))
             offset = ((w - new_w) // 2, (h - new_h) // 2)
             background.paste(img, offset)
@@ -188,67 +170,48 @@ class DashboardUI:
             self.cam_image_ref = photo
         except Exception as e:
             print(f"Error loading image: {e}")
-    def update_scale_reading(self, grams):
-        """Update the displayed scale weight."""
-        self.scale_label.config(text=f"Scale: {grams:.2f} g")
 
+    # --------------------------------------------------
+    # Thread-safe wrappers
+    # --------------------------------------------------
     def _schedule(self, fn, *args, **kwargs):
-        """Schedule a function to run on the tkinter mainloop thread."""
         try:
-            # `after(0, ...)` runs the callable on the GUI thread ASAP.
             self.root.after(0, lambda: fn(*args, **kwargs))
         except Exception as e:
             print("Failed to schedule GUI update:", e)
 
     def safe_update_instructions(self, text):
-        """Thread-safe wrapper for update_instructions."""
         self._schedule(self.update_instructions, text)
 
     def safe_update_camera_image(self, image_path):
-        """Thread-safe wrapper for update_camera_image."""
         self._schedule(self.update_camera_image, image_path)
 
-    def safe_update_order(self, items):
-        """Thread-safe wrapper for update_order."""
-        self._schedule(self.update_order, items)
+    def safe_update_ingredients(self, text):
+        self._schedule(self.update_ingredients, text)
 
-    def safe_update_ingredients(self, ingredients):
-        """Thread-safe wrapper for update_ingredients."""
-        self._schedule(self.update_ingredients, ingredients)
-    def safe_update_scale_reading(self, grams):
-        """Thread-safe update for the scale reading."""
-        self._schedule(self.update_scale_reading, grams)
-
-    # -----------------------------
-    # 🔹 Instruction Highlighting
-    # -----------------------------
+    # --------------------------------------------------
+    # Instruction Highlighting
+    # --------------------------------------------------
     def highlight_instructions(self, color="#AA0000"):
-        """
-        Make the instructions box red (or a custom color).
-        """
         try:
             self.inst_label.config(bg=color)
-            # Also color the containing frame so it matches nicely
             parent = self.inst_label.master
             parent.config(bg=color)
         except Exception as e:
             print(f"Failed to highlight instructions: {e}")
 
     def reset_instructions_highlight(self):
-        """
-        Undo highlight — restore original dark gray background.
-        """
         try:
             self.inst_label.config(bg="#333333")
             parent = self.inst_label.master
             parent.config(bg="#333333")
         except Exception as e:
             print(f"Failed to reset instructions highlight: {e}")
-    # -----------------------------
-    # 🔹 Button Listener
-    # -----------------------------
+
+    # --------------------------------------------------
+    # Optional Complete handler
+    # --------------------------------------------------
     def complete_click_handler(self):
-        """Old on_complete_click replacement (if you need it)."""
         cb = getattr(self, "on_complete_click", None)
         if callable(cb):
             try:
@@ -256,17 +219,10 @@ class DashboardUI:
             except Exception as e:
                 print("Error in on_complete_click callback:", e)
 
-# Run test
+
+# --- Test Run ---
 if __name__ == "__main__":
     ui = DashboardUI()
-    from order_manager import OrderManager, Ingredient
-
-    # Example dynamic updates
-    manager = OrderManager()
-    manager.add_order("Potato Order", {Ingredient.POTATO: 150})
-    manager.add_order("Another Potato Order", {Ingredient.POTATO: 200})
-    manager.add_order("Small Potato Order", {Ingredient.POTATO: 100})
-    ui.safe_update_order([str(order) for order in manager.orders])
-    ui.safe_update_ingredients([f"{ing.value}: {amt}g" for ing, amt in manager.ingredient_totals.items()])
-    ui.safe_update_instructions("Welcome! Please place the vegetable in front of the camera.")
+    ui.safe_update_ingredients("Potato: 1345/2500 g")
+    ui.safe_update_instructions("Please place the next potato under the camera.")
     ui.root.mainloop()
