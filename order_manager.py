@@ -105,5 +105,6 @@ class OrderManager:
         # 3. Update the UI
         # --------------------------
         # ui.safe_update_order(formatted_orders)
-        processing_page = ui.get_page("processing_page")
+        processing_page = ui.pages["vegetable_processing"]
         processing_page.safe_update_ingredients(ingredient_display)
+    

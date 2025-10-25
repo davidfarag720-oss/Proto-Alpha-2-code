@@ -3,7 +3,7 @@ import time
 from PIL import Image
 import cv2
 from picamera2 import Picamera2
-from dashboard_ui import DashboardUI
+from dashboard_ui import MainApp
 from ultralytics import YOLO
 
 class CameraController:
@@ -69,7 +69,7 @@ class CameraController:
     # ----------------------------------------------------------------------
     # Take a new image and get detections
     # ----------------------------------------------------------------------
-    def get_latest_objects(self, DashboardUI=None):
+    def get_latest_objects(self, MainApp=None):
         # capture under lock, then process without holding lock
         with self._lock:
             tmp_path = self.save_path
@@ -78,8 +78,9 @@ class CameraController:
         results = self.model(tmp_path)
         detections = self._parse_detections(results)
         self.annotate_image(tmp_path, detections)
-        if(DashboardUI is not None):
-            DashboardUI.safe_update_camera_image(tmp_path)
+        if(MainApp is not None):
+            viewer = MainApp.pages["vegetable_processing"]
+            viewer.safe_update_camera_image(tmp_path)
         return detections
 
     # ----------------------------------------------------------------------
@@ -153,7 +154,7 @@ class CameraController:
         print("Camera fully stopped.")
 
 if __name__ == "__main__":
-    ui = DashboardUI()
+    ui = MainApp()
 
     model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/pulse_check.pt")
     camera = CameraController(model=model, ui=ui)

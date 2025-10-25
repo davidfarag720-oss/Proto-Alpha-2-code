@@ -11,7 +11,8 @@ class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Smart Veggie Station")
-        self.geometry("1200x700")
+        self.geometry("800x480")  # ideal for most 7-inch Pi touchscreens
+        self.minsize(800, 480)
         self.configure(bg="#FFFFFF")
 
         self.rowconfigure(0, weight=1)
@@ -40,6 +41,8 @@ class MainApp(tk.Tk):
     def show_page(self, name):
         self.pages[name].tkraise()
         self.current_page = name
+    def get_page(self, name):
+        return self.pages.get(name, None)
 
     def toggle_page(self):
         """Switch between selection and processing pages."""
