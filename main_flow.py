@@ -4,6 +4,7 @@ import logging
 
 class MainController:
     def __init__(self, ui, camera, cutter, load_cell, turntable, order_manager):
+        logging.basicConfig(level=logging.INFO)
         self.ui = ui
         self.camera = camera
         self.cutter = cutter
@@ -11,6 +12,7 @@ class MainController:
         self.turntable = turntable
         self.order_manager = order_manager
 
+        self.required_ingredients: dict = {}
         self.processed_ingredients: dict = {}
         self._stop_event = threading.Event()
 
@@ -31,9 +33,6 @@ class MainController:
         """Main control loop."""
         while not self._stop_event.is_set():
             order = self._wait_for_order()
-            if not order:
-                time.sleep(1)
-                continue
             self._process_order(order)
 
     def stop(self, join_timeout=5.0):
@@ -78,17 +77,14 @@ class MainController:
 
         # No orders -> wait and allow test order creation
         self._ui_update_instructions("Waiting for orders... Click Continue to add a test order.")
-        self.ui_wait_for_continue()
+        self._ui_wait_for_continue()
 
         # Add dummy order when Continue is pressed
         from order_manager import Ingredient
         self.order_manager.add_order("Small Fries", {Ingredient.POTATO: 100})
 
         # Update UI
-        self.ui.safe_update_order([str(order) for order in self.order_manager.orders])
-        self.ui.safe_update_ingredients([
-            f"{ing.value}: {amt}g" for ing, amt in self.order_manager.ingredient_totals.items()
-        ])
+        self.order_manager.update_ui(self.ui, self.processed_ingredients)
 
         return self.order_manager.get_pending_orders()[0]
 
@@ -96,13 +92,12 @@ class MainController:
 
     def _process_order(self, order):
         """Process all ingredients for a given order."""
-        # defensive: some order_manager APIs require the order identifier as argument
         order.mark_in_progress()
-        self.ui.safe_update_order([str(o) for o in self.order_manager.orders])
+        self.order_manager.update_ui(self.ui, self.processed_ingredients)
 
         try:
             try:
-                ingredients = self.order_manager.get_ingredients(order)
+                ingredients = self.order_manager.get_order_ingredients(order)
             except TypeError:
                 ingredients = self.order_manager.get_ingredients()
         except Exception:
@@ -112,15 +107,19 @@ class MainController:
         for ingredient_enum, required_grams in ingredients.items():
             ingredient_name = ingredient_enum.value
             with self._lock:
-                if ingredient_name not in self.processed_ingredients:
-                    self.processed_ingredients[ingredient_name] = 0.0
+                if ingredient_enum not in self.processed_ingredients:
+                    self.processed_ingredients[ingredient_enum] = 0.0
+                if ingredient_enum not in self.required_ingredients:
+                    self.required_ingredients[ingredient_enum] = 0.0
 
-            self._process_ingredient(ingredient_name, required_grams)
+            self.required_ingredients[ingredient_enum] += required_grams
+
+            self._process_ingredient(ingredient_enum)
 
         self._ui_update_instructions(f"✅ Order completed: {order}")
         try:
             order.mark_completed()
-            self._ui_update_order([str(o) for o in self.order_manager.orders])
+            self.order_manager.update_ui(self.ui, self.processed_ingredients)
         except Exception:
             self.logger.exception("Failed to remove order")
 
@@ -128,17 +127,19 @@ class MainController:
     # -----------------------------
     # 🔹 Ingredient Processing
     # -----------------------------
-    def _process_ingredient(self, ingredient_name, required_grams):
+    def _process_ingredient(self, ingredient_enum):
         """Process a single ingredient until required grams reached."""
+        ingredient_name = ingredient_enum.value
+        pre_process_weight = self.processed_ingredients[ingredient_enum]
         while (
-            self.processed_ingredients[ingredient_name] < required_grams
+            self.processed_ingredients[ingredient_enum] < self.required_ingredients[ingredient_enum]
             and not self._stop_event.is_set()
         ):
             self._prompt_user_to_place(ingredient_name)
             if not self._check_quality(ingredient_name):
                 continue
-            self._run_cutter_until_weight_reached(ingredient_name, required_grams)
-        self._finish_ingredient(ingredient_name)
+            self._run_cutter_until_weight_reached(ingredient_enum)
+        self._finish_ingredient(ingredient_enum, pre_process_weight)
 
     def _prompt_user_to_place(self, ingredient_name):
         """Ask user to place ingredient and wait for continue."""
@@ -163,8 +164,9 @@ class MainController:
     # -----------------------------
     # 🔹 Cutting & Weight Control
     # -----------------------------
-    def _run_cutter_until_weight_reached(self, ingredient_name, required_grams):
+    def _run_cutter_until_weight_reached(self, ingredient_enum):
         """Run cutter and monitor weight until target reached or stall detected."""
+        ingredient_name = ingredient_enum.value
         self._ui_update_instructions(f"Processing {ingredient_name}...")
         # ensure cutter is deactivated on error/exit
         try:
@@ -202,8 +204,8 @@ class MainController:
                 if delta >= self.weight_stable_threshold:
                     # update processed_ingredients safely
                     with self._lock:
-                        self.processed_ingredients[ingredient_name] = (
-                            self.processed_ingredients.get(ingredient_name, 0.0) + delta
+                        self.processed_ingredients[ingredient_enum] = (
+                            self.processed_ingredients.get(ingredient_enum, 0.0) + delta
                         )
                     no_change_count = 0
                 else:
@@ -213,8 +215,8 @@ class MainController:
 
                 # Check completion
                 with self._lock:
-                    processed = self.processed_ingredients.get(ingredient_name, 0.0)
-                if processed >= required_grams:
+                    processed = self.processed_ingredients.get(ingredient_enum, 0.0)
+                if processed >= self.required_ingredients[ingredient_enum]:
                     # we reached the requested grams
                     try:
                         self.cutter.deactivate()
@@ -282,10 +284,10 @@ class MainController:
         self.turntable.moveToPosition(next_pos)
         self.turntable.currentPosition = next_pos
 
-    def _finish_ingredient(self, ingredient_name):
+    def _finish_ingredient(self, ingredient_enum, pre_process_weight):
         """Update GUI and confirm done."""
-        grams = self.processed_ingredients[ingredient_name]
-        self._ui_update_instructions(f"{ingredient_name} processed: {grams:.1f}g. Please collect it.")
+        grams = self.processed_ingredients[ingredient_enum] - pre_process_weight
+        self._ui_update_instructions(f"{ingredient_enum.value} processed: {grams:.1f}g. Please collect it.")
         self._ui_wait_for_continue()
 
     # -----------------------------
@@ -304,23 +306,6 @@ class MainController:
         except Exception:
             self.logger.exception("Error while evaluating detections")
             return False
-        
-    def _ui_update_order_and_ingredients(self):
-        try:
-            self._ui_update_order([str(o) for o in self.order_manager.orders])
-            self._ui_update_ingredients([
-                f"{ing.value}: {amt}g" for ing, amt in self.order_manager.ingredient_totals.items()
-            ])
-        except Exception:
-            self.logger.exception("Failed to refresh order/ingredient display")
-
-    def _ui_update_order(self, items):
-        if hasattr(self.ui, "safe_update_order"):
-            self.ui.safe_update_order(items)
-
-    def _ui_update_ingredients(self, ingredients):
-        if hasattr(self.ui, "safe_update_ingredients"):
-            self.ui.safe_update_ingredients(ingredients)
 
     # -----------------------------
     # UI helper wrappers (thread-safe if DashboardUI supports it)
@@ -363,4 +348,3 @@ class MainController:
         except Exception:
             self.logger.exception("wait_for_continue failed")
             return False
-

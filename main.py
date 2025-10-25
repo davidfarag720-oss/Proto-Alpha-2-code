@@ -40,7 +40,7 @@ def main():
 
     # --- Initialize vision system ---
     try:
-        model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/pulse_check.pt")
+        model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/proto_alpha_2_train.pt")
         camera = CameraController(model=model, ui=ui)
     except Exception as e:
         logging.error(f"Camera or model init failed: {e}")

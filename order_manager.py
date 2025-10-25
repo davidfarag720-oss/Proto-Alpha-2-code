@@ -1,4 +1,5 @@
 from enum import Enum
+from dashboard_ui import DashboardUI
 
 
 class Ingredient(Enum):
@@ -70,3 +71,38 @@ class OrderManager:
 
     def get_ingredients(self):
         return dict(self.ingredient_totals)
+
+    def get_order_ingredients(self, order: Order):
+        return dict(order.ingredients)
+    
+    # ----------------------------------------------------------------------
+    # Update UI
+    # ----------------------------------------------------------------------
+    def update_ui(self, ui: DashboardUI, ingredients_processed: dict[Ingredient, float]):
+        """Update the dashboard UI with current orders and ingredient progress."""
+
+        # --------------------------
+        # 1. Prepare order display
+        # --------------------------
+        pending_orders = self.get_pending_orders()
+        formatted_orders = []
+        for order in pending_orders:
+            formatted_orders.append(f"{order.order_name}: {order.status}")
+
+        # --------------------------
+        # 2. Prepare ingredient display
+        # --------------------------
+        ingredient_display = []
+        total_ingredients = self.get_ingredients()
+
+        for ingredient, required_grams in total_ingredients.items():
+            processed_grams = ingredients_processed.get(ingredient, 0.0)
+            ingredient_display.append(
+                f"{ingredient.value.capitalize()}: {processed_grams:.1f} / {required_grams:.1f} grams"
+            )
+
+        # --------------------------
+        # 3. Update the UI
+        # --------------------------
+        ui.safe_update_orders(formatted_orders)
+        ui.safe_update_ingredients(ingredient_display)
