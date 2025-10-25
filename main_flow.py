@@ -20,7 +20,7 @@ class MainController:
         self._lock = threading.Lock()
 
         # Tuning parameters
-        self.weight_stable_threshold = 100  # grams
+        self.weight_stable_threshold = 500  # grams
         self.no_change_checks = 20  # 2s (at 100ms)
         self.finish_no_change_checks = 20  # 2s (at 100ms)
 

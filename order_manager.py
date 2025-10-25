@@ -104,5 +104,5 @@ class OrderManager:
         # --------------------------
         # 3. Update the UI
         # --------------------------
-        ui.safe_update_orders(formatted_orders)
+        ui.safe_update_order(formatted_orders)
         ui.safe_update_ingredients(ingredient_display)
