@@ -37,15 +37,15 @@ class LoadCell:
         if HX711 is None:
             raise ImportError("HX711 library is not available on this system.")
 
-        self.hx = HX711(dout_pin, pd_sck_pin)
-        self._lock = threading.Lock()
-        self._powered = True
-        self.reference_unit = 1 / reference_unit
-        self.offset = 0
+        #self.hx = HX711(dout_pin, pd_sck_pin)
+        #self._lock = threading.Lock()
+        #self._powered = True
+        #self.reference_unit = 1 / reference_unit
+        #self.offset = 0
         self.weight = 0.0
 
-        self.hx.reset()
-        self.tare()
+        #self.hx.reset()
+        #self.tare()
         logging.info(f"LoadCell initialized (DOUT={dout_pin}, SCK={pd_sck_pin}, ref={reference_unit})")
 
     def _flatten(self, data):
