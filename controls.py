@@ -101,8 +101,9 @@ class LoadCell:
 
     def get_weight(self, samples=5):
         """Read averaged, tared, and calibrated weight from the load cell."""
-        weight += random.randint(0, 10)  # simulate weight change
-        return weight
+        self.weight += random.randint(0, 10)  # simulate weight change
+        logging.debug(f"LoadCell simulated weight reading: {self.weight:.2f} g")
+        return self.weight
 
         # will deactivate this right now but returning a dummy value
         ''''

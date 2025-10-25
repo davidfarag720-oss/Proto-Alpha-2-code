@@ -20,19 +20,24 @@ class DashboardUI:
         self.setup_grid()
         self.create_sections()
         self.create_continue_button()
+        self.safe_update_status("#00AA00")  # Example: green status
+
 
     # --------------------------------------------------
     # Layout
     # --------------------------------------------------
     def setup_grid(self):
-        """Define grid layout: 2 rows (top large, bottom split), 2 columns."""
-        self.root.rowconfigure(0, weight=3, uniform="row")  # Top (CV Results)
-        self.root.rowconfigure(1, weight=1, uniform="row")  # Bottom (Progress + Instructions)
+        """Define main window grid layout: 
+        - Row 0: Ingredient Progress + Instructions
+        - Row 1: Status panel + Camera feed
+        """
+        self.root.rowconfigure(0, weight=1, uniform="row")  # Top: Progress + Instructions
+        self.root.rowconfigure(1, weight=3, uniform="row")  # Bottom: Status + Camera
         self.root.columnconfigure(0, weight=1, uniform="col")
         self.root.columnconfigure(1, weight=1, uniform="col")
 
     def section(self, parent, title, icon_path=None):
-        """Reusable section with title + optional icon."""
+        """Create a reusable framed section with a header and optional icon."""
         frame = ttk.Frame(parent, padding=10)
         frame.grid_propagate(False)
         frame.columnconfigure(0, weight=1)
@@ -62,23 +67,47 @@ class DashboardUI:
     # Sections
     # --------------------------------------------------
     def create_sections(self):
+        """Create all UI panels: progress, instructions, camera, and status."""
         icons = {
-            "camera": "icons/camera.png",
-            "ingredients": "icons/ingredients.png",
-            "instructions": "icons/instructions.png"
+            "camera": "/home/dfarag/ficio/proto_alpha_2_code/icons/camera.png",
+            "ingredients": "/home/dfarag/ficio/proto_alpha_2_code/icons/ingredients.png",
+            "instructions": "/home/dfarag/ficio/proto_alpha_2_code/icons/instructions.png"
         }
 
-        # --- CV RESULTS (Top, spans full width)
-        cam_frame, cam_content = self.section(self.root, "CV Results", icons["camera"])
-        cam_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=8, pady=8)
+        # Bottom half: status (left) + camera feed (right)
+        bottom_frame = tk.Frame(self.root, bg="#1E1E1E")
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=8, pady=8)
+        bottom_frame.columnconfigure(0, weight=1)
+        bottom_frame.columnconfigure(1, weight=4)
+        bottom_frame.rowconfigure(0, weight=1)
+
+        # --- STATUS PANEL (bottom-left, with title and border)
+        status_outer = tk.LabelFrame(
+            bottom_frame,
+            text="Status",
+            fg="white",
+            bg="#1E1E1E",
+            font=("Segoe UI", 14, "bold"),
+            labelanchor="n",
+            bd=3,
+            relief="groove"
+        )
+        status_outer.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        self.status_frame = tk.Frame(status_outer, bg="#444444")
+        self.status_frame.pack(expand=True, fill="both", padx=5, pady=5)
+        self.sections["status"] = self.status_frame
+
+        # --- CV RESULTS (bottom-right)
+        cam_frame, cam_content = self.section(bottom_frame, "Ficio AI Analysis (Vision/Smell)", icons["camera"])
+        cam_frame.grid(row=0, column=1, sticky="nsew")
         self.sections["camera"] = cam_content
         self.cam_label = tk.Label(cam_content, bg="black")
         self.cam_label.pack(expand=True, fill="both", padx=10, pady=10)
         self.cam_image_ref = None  # prevent GC
 
-        # --- INGREDIENT PROGRESS (Bottom Left)
+        # --- INGREDIENT PROGRESS (top-left)
         ing_frame, ing_content = self.section(self.root, "Ingredient Progress", icons["ingredients"])
-        ing_frame.grid(row=1, column=0, sticky="nsew", padx=8, pady=8)
+        ing_frame.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         self.sections["ingredients"] = ing_content
         self.ing_label = tk.Label(
             ing_content,
@@ -91,18 +120,18 @@ class DashboardUI:
         )
         self.ing_label.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # --- INSTRUCTIONS (Bottom Right)
+        # --- INSTRUCTIONS (top-right)
         inst_frame, inst_content = self.section(self.root, "Instructions", icons["instructions"])
-        inst_frame.grid(row=1, column=1, sticky="nsew", padx=8, pady=8)
+        inst_frame.grid(row=0, column=1, sticky="nsew", padx=8, pady=8)
         self.sections["instructions"] = inst_content
         self.inst_label = tk.Label(
             inst_content,
             text="",
             bg="#333333",
             fg="white",
-            font=("Segoe UI", 14),
-            wraplength=250,
-            justify="left"
+            font=("Segoe UI", 24, "bold"),
+            wraplength=550,
+            justify="center"
         )
         self.inst_label.pack(anchor="w", fill="both", padx=10, pady=10)
 
@@ -110,6 +139,7 @@ class DashboardUI:
     # Continue button
     # --------------------------------------------------
     def create_continue_button(self):
+        """Create bottom-right Continue button."""
         self.continue_btn = tk.Button(
             self.root,
             text="Continue",
@@ -123,6 +153,7 @@ class DashboardUI:
         self.continue_btn.place(relx=0.95, rely=0.95, anchor="se")
 
     def _internal_on_continue_click(self):
+        """Handle Continue button click (thread-safe)."""
         try:
             self.continue_event.set()
         except Exception:
@@ -135,6 +166,7 @@ class DashboardUI:
                 print("Error in on_continue_click callback:", e)
 
     def wait_for_continue(self, timeout=None):
+        """Block until Continue is pressed or timeout expires."""
         self.continue_event.clear()
         return self.continue_event.wait(timeout=timeout)
 
@@ -148,6 +180,7 @@ class DashboardUI:
         self.inst_label.config(text=text)
 
     def update_camera_image(self, image_path):
+        """Update the camera preview image, maintaining aspect ratio."""
         try:
             img = Image.open(image_path)
             w = max(self.cam_label.winfo_width(), 1)
@@ -171,10 +204,18 @@ class DashboardUI:
         except Exception as e:
             print(f"Error loading image: {e}")
 
+    def update_status(self, color):
+        """Change the background color of the Status panel."""
+        try:
+            self.status_frame.config(bg=color)
+        except Exception as e:
+            print(f"Error updating status color: {e}")
+
     # --------------------------------------------------
     # Thread-safe wrappers
     # --------------------------------------------------
     def _schedule(self, fn, *args, **kwargs):
+        """Schedule a function safely in the Tkinter main thread."""
         try:
             self.root.after(0, lambda: fn(*args, **kwargs))
         except Exception as e:
@@ -189,10 +230,14 @@ class DashboardUI:
     def safe_update_ingredients(self, text):
         self._schedule(self.update_ingredients, text)
 
+    def safe_update_status(self, color):
+        self._schedule(self.update_status, color)
+
     # --------------------------------------------------
     # Instruction Highlighting
     # --------------------------------------------------
     def highlight_instructions(self, color="#AA0000"):
+        """Highlight the instruction section with a color (e.g., red for alert)."""
         try:
             self.inst_label.config(bg=color)
             parent = self.inst_label.master
@@ -201,23 +246,13 @@ class DashboardUI:
             print(f"Failed to highlight instructions: {e}")
 
     def reset_instructions_highlight(self):
+        """Reset instruction section to default background."""
         try:
             self.inst_label.config(bg="#333333")
             parent = self.inst_label.master
             parent.config(bg="#333333")
         except Exception as e:
             print(f"Failed to reset instructions highlight: {e}")
-
-    # --------------------------------------------------
-    # Optional Complete handler
-    # --------------------------------------------------
-    def complete_click_handler(self):
-        cb = getattr(self, "on_complete_click", None)
-        if callable(cb):
-            try:
-                cb()
-            except Exception as e:
-                print("Error in on_complete_click callback:", e)
 
 
 # --- Test Run ---

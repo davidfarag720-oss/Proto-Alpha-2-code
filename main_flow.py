@@ -2,6 +2,8 @@ import time
 import threading
 import logging
 
+import order_manager
+
 class MainController:
     def __init__(self, ui, camera, cutter, load_cell, turntable, order_manager):
         logging.basicConfig(level=logging.INFO)
@@ -20,7 +22,7 @@ class MainController:
         self._lock = threading.Lock()
 
         # Tuning parameters
-        self.weight_stable_threshold = 500  # grams
+        self.weight_stable_threshold = 0  # grams
         self.no_change_checks = 20  # 2s (at 100ms)
         self.finish_no_change_checks = 20  # 2s (at 100ms)
 
@@ -137,6 +139,7 @@ class MainController:
         ):
             if not self._check_quality(ingredient_name):
                 continue
+            self.ui.update_status("#00AA00")  # Green status for healthy
             self._prompt_user_to_place(ingredient_name)
             self._run_cutter_until_weight_reached(ingredient_enum)
         self._finish_ingredient(ingredient_enum, pre_process_weight)
@@ -150,10 +153,12 @@ class MainController:
         """Capture a fresh image, display it, and check vegetable quality."""
 
         self._ui_update_instructions("Analyzing vegetable quality...")
+        self.ui.update_status("#FFFF00")  # Yellow status during analysis
         detections = self.camera.get_latest_objects(self.ui)
         healthy = self.is_healthy(detections)
 
         if not healthy:
+            self.ui.update_status("#FF0000")  # Red status for unhealthy
             self._ui_update_instructions(   
                 f"A {ingredient_name} appears unhealthy. Please refer to the image and replace it then click Continue."
             )
@@ -203,6 +208,8 @@ class MainController:
                         self.processed_ingredients[ingredient_enum] = (
                             self.processed_ingredients.get(ingredient_enum, 0.0) + delta
                         )
+
+                        self.order_manager.update_ui(self.ui, self.processed_ingredients)
                     no_change_count = 0
                 else:
                     no_change_count += 1

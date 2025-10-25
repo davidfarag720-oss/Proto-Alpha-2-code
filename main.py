@@ -48,10 +48,7 @@ def main():
 
     order_manager.add_order("Large Fries", {Ingredient.POTATO: 250})
     # 🔹 Update GUI with initial data
-    ui.safe_update_order([str(order) for order in order_manager.orders])
-    ui.safe_update_ingredients([
-        f"{ing.value}: {amt}g" for ing, amt in order_manager.ingredient_totals.items()
-    ])
+    order_manager.update_ui(ui , {})
 
     # --- Initialize main controller ---
     main_controller = MainController(
