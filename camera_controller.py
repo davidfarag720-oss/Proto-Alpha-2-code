@@ -104,40 +104,45 @@ class CameraController:
     # Annotate and update GUI image
     # ----------------------------------------------------------------------
     def annotate_image(self, image_path, detections):
-        """Annotate image, save, and update UI — but call UI via safe wrapper."""
+        """Annotate only 'Unhealthy potato' detections, save, and update UI."""
         img = cv2.imread(image_path)
         if img is None:
             print(f"[CameraController] Failed to read image at {image_path}")
             return
 
-        if detections:
-            for det in detections:
+        # Filter detections to only "Unhealthy potato"
+        filtered_detections = [
+            det for det in detections or []
+            if det.get("label", "").lower() == "unhealthy potato"
+        ]
+
+        if filtered_detections:
+            for det in filtered_detections:
                 try:
                     x1, y1, x2, y2 = map(int, det["bbox"])
                     label = det["label"]
                     conf = det["confidence"]
                     text = f"{label} {conf:.2f}"
-                    cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 10)
+                    cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 10)  # red for unhealthy
                     cv2.putText(img, text, (x1, max(y1 - 10, 30)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 12.0, (255, 0, 100), 25)
+                                cv2.FONT_HERSHEY_SIMPLEX, 3.0, (0, 0, 255), 5)
                 except Exception as e:
                     print("[CameraController] Bad detection entry:", e)
         else:
-            # no objects: optionally annotate or leave image as-is
-            pass
+            print("[CameraController] No unhealthy potatoes detected.")
 
-        # Save annotated image (may be heavy; it's okay outside lock)
+        # Save annotated image
         cv2.imwrite(self.save_path, img)
 
-        # Update UI via a thread-safe wrapper if available, else fallback
+        # Update UI via thread-safe wrapper
         try:
             if hasattr(self.ui, "safe_update_camera_image"):
                 self.ui.safe_update_camera_image(self.save_path)
             else:
-                # fallback (risky): call directly
                 self.ui.update_camera_image(self.save_path)
         except Exception as e:
             print(f"[CameraController] GUI update failed: {e}")
+
 
     # ----------------------------------------------------------------------
     # Fully stop the camera when done

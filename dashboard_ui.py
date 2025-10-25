@@ -218,6 +218,32 @@ class DashboardUI:
     def safe_update_scale_reading(self, grams):
         """Thread-safe update for the scale reading."""
         self._schedule(self.update_scale_reading, grams)
+
+    # -----------------------------
+    # 🔹 Instruction Highlighting
+    # -----------------------------
+    def highlight_instructions(self, color="#AA0000"):
+        """
+        Make the instructions box red (or a custom color).
+        """
+        try:
+            self.inst_label.config(bg=color)
+            # Also color the containing frame so it matches nicely
+            parent = self.inst_label.master
+            parent.config(bg=color)
+        except Exception as e:
+            print(f"Failed to highlight instructions: {e}")
+
+    def reset_instructions_highlight(self):
+        """
+        Undo highlight — restore original dark gray background.
+        """
+        try:
+            self.inst_label.config(bg="#333333")
+            parent = self.inst_label.master
+            parent.config(bg="#333333")
+        except Exception as e:
+            print(f"Failed to reset instructions highlight: {e}")
     # -----------------------------
     # 🔹 Button Listener
     # -----------------------------
