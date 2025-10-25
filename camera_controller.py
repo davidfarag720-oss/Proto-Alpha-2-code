@@ -3,7 +3,7 @@ import time
 from PIL import Image
 import cv2
 from picamera2 import Picamera2
-from dashboard_ui import MainApp
+from dashboard_ui import MainApp, VegetableProcessingPage
 from ultralytics import YOLO
 
 class CameraController:
@@ -69,7 +69,7 @@ class CameraController:
     # ----------------------------------------------------------------------
     # Take a new image and get detections
     # ----------------------------------------------------------------------
-    def get_latest_objects(self, MainApp=None):
+    def get_latest_objects(self, ui=None):
         # capture under lock, then process without holding lock
         with self._lock:
             tmp_path = self.save_path
@@ -78,9 +78,8 @@ class CameraController:
         results = self.model(tmp_path)
         detections = self._parse_detections(results)
         self.annotate_image(tmp_path, detections)
-        if(MainApp is not None):
-            viewer = MainApp.pages["vegetable_processing"]
-            viewer.safe_update_camera_image(tmp_path)
+        if(ui is not None):
+            ui.update_camera_image(tmp_path)
         return detections
 
     # ----------------------------------------------------------------------

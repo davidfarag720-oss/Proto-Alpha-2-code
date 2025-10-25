@@ -21,6 +21,8 @@ class MainApp(tk.Tk):
         # Container for pages
         self.container = tk.Frame(self, bg="#FFFFFF")
         self.container.grid(row=0, column=0, sticky="nsew")
+        self.container.rowconfigure(0, weight=1)
+        self.container.columnconfigure(0, weight=1)
 
         # Dictionary of pages
         self.pages = {}
@@ -58,6 +60,8 @@ class MainApp(tk.Tk):
 class VegetableSelectionPage(tk.Frame):
     def __init__(self, parent, controller, on_select_callback=None):
         super().__init__(parent, bg="#FFFFFF")
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
         self.controller = controller
         self.on_select_callback = on_select_callback
         self.select_event = threading.Event()
@@ -141,6 +145,8 @@ class VegetableSelectionPage(tk.Frame):
 class VegetableProcessingPage(tk.Frame):
     def __init__(self, parent, controller, on_continue_click=None):
         super().__init__(parent, bg="#FFFFFF")
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
         self.controller = controller
         self.on_continue_click = on_continue_click
         self.continue_event = threading.Event()
