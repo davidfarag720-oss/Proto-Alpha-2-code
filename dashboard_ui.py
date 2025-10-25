@@ -69,10 +69,10 @@ class VegetableSelectionPage(tk.Frame):
 
         # Define vegetable buttons (image + label)
         veggies = [
-            ("Potato", "/home/dfarag/ficio/proto_alpha_2_code/icons/potato.jpg"),
             ("Carrot", "/home/dfarag/ficio/proto_alpha_2_code/icons/carrot.jpg"),
             ("Tomato", "/home/dfarag/ficio/proto_alpha_2_code/icons/tomato.jpg"),
             ("Bell Pepper", "/home/dfarag/ficio/proto_alpha_2_code/icons/bell_pepper.jpg"),
+            ("Potato", "/home/dfarag/ficio/proto_alpha_2_code/icons/potato.jpg"),
         ]
 
         # Create 2x2 grid of buttons
