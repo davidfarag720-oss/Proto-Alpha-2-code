@@ -13,7 +13,7 @@ from ultralytics import YOLO
 
 from controls import LoadCell, Cutter, Turntable
 from camera_controller import CameraController
-from dashboard_ui import DashboardUI
+from dashboard_ui import MainApp
 from main_flow import MainController
 from order_manager import Ingredient, OrderManager
 
@@ -25,7 +25,7 @@ def main():
     print("Initializing system...")
 
     # --- Initialize UI (must be in main thread) ---
-    ui = DashboardUI()
+    ui = MainApp()
 
     # --- Initialize hardware ---
     try:
@@ -41,12 +41,11 @@ def main():
     # --- Initialize vision system ---
     try:
         model = YOLO("/home/dfarag/ficio/proto_alpha_2_code/CV_Models/proto_alpha_2_train.pt")
-        camera = CameraController(model=model, ui=ui)
+        camera = CameraController(model=model, ui=ui.pages["vegetable_processing"])
     except Exception as e:
         logging.error(f"Camera or model init failed: {e}")
         return
 
-    order_manager.add_order("Large Fries", {Ingredient.POTATO: 250})
     # 🔹 Update GUI with initial data
     order_manager.update_ui(ui , {})
 
@@ -81,7 +80,7 @@ def main():
     # -------------------------------------------------------------------------
     try:
         logging.info("Starting GUI mainloop...")
-        ui.root.mainloop()  # <-- GUI stays open and responsive here
+        ui.mainloop()  # <-- GUI stays open and responsive here
     except KeyboardInterrupt:
         logging.info("GUI interrupted by user.")
     finally:

@@ -78,8 +78,9 @@ class MainController:
             return pending[0]
 
         # No orders -> wait and allow test order creation
-        self._ui_update_instructions("No pending orders. Click Continue to add a test order.")
-        self._ui_wait_for_continue()
+        page = self.ui.pages["vegetable_selection"]
+        page.wait_for_selection()
+        self.ui.show_page("vegetable_processing")
 
         # Add dummy order when Continue is pressed
         from order_manager import Ingredient
@@ -139,30 +140,36 @@ class MainController:
         ):
             if not self._check_quality(ingredient_name):
                 continue
-            self.ui.update_status("#00AA00")  # Green status for healthy
+            page = self._processing_page()
+            page.update_status("#00AA00")  # Green status for healthy
             self._prompt_user_to_place(ingredient_name)
             self._run_cutter_until_weight_reached(ingredient_enum)
         self._finish_ingredient(ingredient_enum, pre_process_weight)
+        self._show_selection_page()
 
     def _prompt_user_to_place(self, ingredient_name):
         """Ask user to place ingredient and wait for continue."""
+        
         self._ui_update_instructions(f"Please add in {ingredient_name}.")
-        self._ui_wait_for_continue()
+        page = self._processing_page()
+        page.wait_for_continue()
 
     def _check_quality(self, ingredient_name):
         """Capture a fresh image, display it, and check vegetable quality."""
 
         self._ui_update_instructions("Analyzing vegetable quality...")
-        self.ui.update_status("#FFFF00")  # Yellow status during analysis
-        detections = self.camera.get_latest_objects(self.ui)
+        page = self._processing_page()
+        page.update_status("#FFFF00")  # Yellow status during analysis
+        detections = self.camera.get_latest_objects(page)
         healthy = self.is_healthy(detections)
 
         if not healthy:
-            self.ui.update_status("#FF0000")  # Red status for unhealthy
-            self._ui_update_instructions(   
+            page.update_status("#FF0000")  # Red status for unhealthy
+            self._ui_update_instructions(
                 f"A {ingredient_name} appears unhealthy. Please refer to the image and replace it then click Continue."
             )
-            self._ui_wait_for_continue()
+            page = self._processing_page()
+            page.wait_for_continue()
         return healthy
 
 
@@ -240,7 +247,8 @@ class MainController:
                     self._ui_update_instructions(
                         f"No weight increase detected. Please add more {ingredient_name} and click Continue."
                     )
-                    self._ui_wait_for_continue()
+                    page = self._processing_page()
+                    page.wait_for_continue()
                     # Restart full loop for this ingredient
                     return
         finally:
@@ -290,7 +298,8 @@ class MainController:
         """Update GUI and confirm done."""
         grams = self.processed_ingredients[ingredient_enum] - pre_process_weight
         self._ui_update_instructions(f"{ingredient_enum.value} processed: {grams:.1f}g. Please collect it.")
-        self._ui_wait_for_continue()
+        page = self._processing_page()
+        page.wait_for_continue()
 
     # -----------------------------
     # 🔹 Utility
@@ -309,8 +318,17 @@ class MainController:
             self.logger.exception("Error while evaluating detections")
             return False
 
+    def _show_selection_page(self):
+        self.ui.show_page("vegetable_selection")
+
+    def _show_processing_page(self):
+        self.ui.show_page("vegetable_processing")
+
+    def _processing_page(self):
+        return self.ui.pages["vegetable_processing"]
+
     # -----------------------------
-    # UI helper wrappers (thread-safe if DashboardUI supports it)
+    # UI helper wrappers (thread-safe if MainApp supports it)
     # -----------------------------
     def _ui_update_instructions(self, text):
         if hasattr(self.ui, "safe_update_instructions"):
@@ -318,14 +336,17 @@ class MainController:
         else:
             # fallback: best-effort direct call (only safe if controller runs off the main thread)
             try:
-                self.ui.update_instructions(text)
+                page = self._processing_page()
+                page.update_instructions(text)
             except Exception:
                 # as a last resort, schedule via `after` if UI exposes root
                 try:
-                    if hasattr(self.ui, "root") and hasattr(self.ui.root, "after"):
-                        self.ui.root.after(0, lambda: self.ui.update_instructions(text))
+                    page = self._processing_page()
+                    if hasattr(page, "root") and hasattr(page.root, "after"):
+                        page.root.after(0, lambda: page.update_instructions(text))
                 except Exception as e:
                     self.logger.exception("Failed to update GUI instructions: %s", e)
+    '''''
     def _ui_wait_for_continue(self, timeout=None):
         """
         Wait for the UI continue action. If UI exposes a blocking `wait_for_continue` this will use it.
@@ -350,3 +371,4 @@ class MainController:
         except Exception:
             self.logger.exception("wait_for_continue failed")
             return False
+            '''''

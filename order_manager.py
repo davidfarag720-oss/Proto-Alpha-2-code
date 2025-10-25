@@ -1,5 +1,5 @@
 from enum import Enum
-from dashboard_ui import DashboardUI
+from dashboard_ui import MainApp
 
 
 class Ingredient(Enum):
@@ -78,7 +78,7 @@ class OrderManager:
     # ----------------------------------------------------------------------
     # Update UI
     # ----------------------------------------------------------------------
-    def update_ui(self, ui: DashboardUI, ingredients_processed: dict[Ingredient, float]):
+    def update_ui(self, ui: MainApp, ingredients_processed: dict[Ingredient, float]):
         """Update the dashboard UI with current orders and ingredient progress."""
 
         # --------------------------
@@ -105,4 +105,5 @@ class OrderManager:
         # 3. Update the UI
         # --------------------------
         # ui.safe_update_order(formatted_orders)
-        ui.safe_update_ingredients(ingredient_display)
+        processing_page = ui.get_page("processing_page")
+        processing_page.safe_update_ingredients(ingredient_display)
